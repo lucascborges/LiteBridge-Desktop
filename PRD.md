@@ -84,4 +84,5 @@ O software resolve a friccao de configuracao, eliminando a poluicao de variaveis
 1. **Compilacao Rust:** Sem erros ou warnings em `windows`, `darwin` e `linux`.
 2. **Seguranca OWASP Top 10:** Documento dedicado `docs/SECURITY_OWASP.md` e mitigacao comprovada de injecao de comandos e vazamento de tokens.
 3. **Testes Automatizados:** Testes em Rust para parser, backup, sanitizacao e injecao de env vars; testes em Vitest para componentes e hooks.
-4. **CI/CD:** Pipeline de GitHub Actions multiplataforma com matrix para macOS, Windows e Linux.
+4. **CI/CD & Distribuicao:** Pipeline de GitHub Actions multiplataforma com matrix para macOS, Windows e Linux, alem de suporte a distribuicao via Homebrew Tap (`Casks/litebridge-desktop.rb` com `--no-quarantine`).
+

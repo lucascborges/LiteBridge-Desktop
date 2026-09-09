@@ -22,9 +22,37 @@ It eliminates the friction of manual configuration:
 ## Multiplatform Installation
 
 ### macOS (Apple Silicon & Intel)
+
+#### Option 1: Via Homebrew (Recommended ⚡)
+Install seamlessly without Gatekeeper quarantine alerts:
+
+```bash
+# Add the tap
+brew tap lucascborges/tap
+
+# Install LiteBridge Desktop
+brew install --cask --no-quarantine litebridge-desktop
+```
+
+> **Note:** The `--no-quarantine` flag ensures macOS Gatekeeper does not block the open-source binary upon first launch.
+
+#### Option 2: Direct Download (`.dmg`)
 1. Download the latest `.dmg` installer from [Releases](https://github.com/lucascborges/LiteBridge-Desktop/releases).
 2. Open the `.dmg` and drag `LiteBridge Desktop` to your `Applications` folder.
-3. Open Terminal.app or iTerm2 to grant accessibility permissions if prompted by `osascript`.
+
+> [!WARNING]
+> ### ⚠️ IMPORTANT FOR DIRECT DMG DOWNLOADS
+> **If macOS displays:**  
+> > *“LiteBridge Desktop.app” is damaged and can’t be opened. You should move it to the Trash.*
+> 
+> This is a false positive triggered by **macOS Gatekeeper** on apps distributed outside the Mac App Store without an Apple Developer ID signature.
+> 
+> **Fix in 5 seconds:** Open **Terminal** and run:
+> ```bash
+> xattr -cr "/Applications/LiteBridge Desktop.app"
+> ```
+> *(Or go to **System Settings > Privacy & Security** and click **"Open Anyway"**).*
+
 
 ### Windows (10/11 x64)
 1. Download `LiteBridge-Windows.msi` or `.exe` installer.
