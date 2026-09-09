@@ -94,8 +94,9 @@ export const OrchestratorCanvas: React.FC = () => {
         })
         setLaunchFeedback(res ? 'Claude Desktop configuration updated & backup saved!' : 'Config injected!')
       } else {
+        const targetExec = currentHarness.path || currentHarness.binary
         const res = await launchMutation.mutateAsync({
-          binary: currentHarness.binary,
+          binary: targetExec,
           emulator: selectedEmulator,
           envVars: {
             ANTHROPIC_BASE_URL: gatewayUrl,

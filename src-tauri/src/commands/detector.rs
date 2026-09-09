@@ -102,9 +102,77 @@ pub fn resolve_claude_desktop_path_with_base(base_dir: &Path, os_name: &str) -> 
     }
 }
 
-/// Busca o binário no $PATH usando a crate `which` de forma segura sem invocar shell
+/// Busca o binário no $PATH e em diretórios canônicos do usuário (ex: ~/.local/bin, /opt/homebrew/bin)
 pub fn find_binary_in_path(binary: &str) -> Option<PathBuf> {
-    which::which(binary).ok()
+    // 1. Tenta buscar no PATH herdado pelo processo
+    if let Ok(path) = which::which(binary) {
+        return Some(path);
+    }
+
+    // 2. Em macOS e Linux, apps GUI (.app) iniciados pelo Finder não herdam o PATH do .zshrc/.bashrc
+    // Verifica caminhos padrões onde npm, cargo, pipx e instaladores de CLI costumam colocar binários
+    #[cfg(unix)]
+    {
+        let mut candidates = Vec::new();
+
+        if let Some(home) = dirs::home_dir() {
+            candidates.push(home.join(".local/bin").join(binary));
+            candidates.push(home.join(".cargo/bin").join(binary));
+            candidates.push(home.join(".npm-global/bin").join(binary));
+            candidates.push(home.join(".nvm/current/bin").join(binary));
+            candidates.push(home.join(".local/share/pnpm").join(binary));
+            candidates.push(home.join(".bun/bin").join(binary));
+            candidates.push(home.join("bin").join(binary));
+        }
+
+        candidates.push(PathBuf::from("/opt/homebrew/bin").join(binary));
+        candidates.push(PathBuf::from("/usr/local/bin").join(binary));
+        candidates.push(PathBuf::from("/usr/bin").join(binary));
+        candidates.push(PathBuf::from("/bin").join(binary));
+
+        for path in candidates {
+            if path.exists() && path.is_file() {
+                return Some(path);
+            }
+        }
+
+        // 3. Consulta o shell de login do usuário (ex: zsh -l -c 'which <binary>')
+        let user_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        if let Ok(output) = Command::new(&user_shell)
+            .args(["-l", "-c", &format!("which {binary}")])
+            .output()
+        {
+            if output.status.success() {
+                let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !found.is_empty() {
+                    let pb = PathBuf::from(found);
+                    if pb.exists() {
+                        return Some(pb);
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let win_candidates = vec![
+                home.join(".cargo").join("bin").join(format!("{binary}.exe")),
+                home.join("AppData").join("Roaming").join("npm").join(format!("{binary}.cmd")),
+                home.join("AppData").join("Roaming").join("npm").join(format!("{binary}.exe")),
+                home.join("AppData").join("Local").join("Programs").join(binary).join(format!("{binary}.exe")),
+                home.join(".local").join("bin").join(format!("{binary}.exe")),
+            ];
+            for p in win_candidates {
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+
+    None
 }
 
 #[tauri::command]
