@@ -1,11 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Activity, RefreshCw, Settings, User, Globe } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '../store/useAppStore'
 import { useLiteLLMHealth, useSaveAppSettings } from '../hooks/useTauriBridge'
 import { useTranslation } from '../i18n/useTranslation'
 import type { Language } from '../types'
 
 export const Header: React.FC<{ onOpenDiagnostics: () => void }> = ({ onOpenDiagnostics }) => {
+  const queryClient = useQueryClient()
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const { t, language, setLanguage } = useTranslation()
   const gatewayUrl = useAppStore((s) => s.gatewayUrl)
   const apiKey = useAppStore((s) => s.apiKey)
@@ -130,11 +133,16 @@ export const Header: React.FC<{ onOpenDiagnostics: () => void }> = ({ onOpenDiag
 
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#e5e1e4] text-xs transition-colors cursor-pointer"
+            disabled={isRefreshing}
+            onClick={async () => {
+              setIsRefreshing(true)
+              await queryClient.invalidateQueries()
+              setTimeout(() => setIsRefreshing(false), 500)
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] disabled:opacity-50 text-[#bbcabf] hover:text-[#e5e1e4] text-xs transition-colors cursor-pointer"
             title={t('refresh')}
           >
-            <RefreshCw className="w-3.5 h-3.5 text-[#4cd7f6]" />
+            <RefreshCw className={`w-3.5 h-3.5 text-[#4cd7f6] ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="hidden lg:inline text-[11px] font-mono">{t('refresh')}</span>
           </button>
 

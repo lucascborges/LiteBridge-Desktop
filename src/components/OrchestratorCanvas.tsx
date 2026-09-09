@@ -11,7 +11,12 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
-import { useLaunchTerminal, useMutateClaudeDesktopConfig, useTrackedProcesses } from '../hooks/useTauriBridge'
+import {
+  useLaunchTerminal,
+  useMutateClaudeDesktopConfig,
+  useTrackedProcesses,
+  useSystemScanner,
+} from '../hooks/useTauriBridge'
 import { useTranslation } from '../i18n/useTranslation'
 
 export const OrchestratorCanvas: React.FC = () => {
@@ -34,6 +39,7 @@ export const OrchestratorCanvas: React.FC = () => {
   const { t } = useTranslation()
 
   const { data: trackedProcesses = [] } = useTrackedProcesses()
+  const { refetch: refetchSystemScan, isFetching: isScanning } = useSystemScanner()
 
   const [copiedBinary, setCopiedBinary] = useState(false)
   const [copiedEnv, setCopiedEnv] = useState(false)
@@ -205,11 +211,12 @@ export const OrchestratorCanvas: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
+              disabled={isScanning}
+              onClick={() => refetchSystemScan()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] disabled:opacity-50 text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-[#10b981]" />
-              <span>{t('detectAgain')}</span>
+              <RefreshCw className={`w-3.5 h-3.5 text-[#10b981] ${isScanning ? 'animate-spin' : ''}`} />
+              <span>{isScanning ? '...' : t('detectAgain')}</span>
             </button>
             <button
               type="button"

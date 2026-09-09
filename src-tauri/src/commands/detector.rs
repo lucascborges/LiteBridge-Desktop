@@ -102,6 +102,25 @@ pub fn resolve_claude_desktop_path_with_base(base_dir: &Path, os_name: &str) -> 
     }
 }
 
+pub fn parse_whereis_output(output_str: &str) -> Vec<PathBuf> {
+    // whereis output looks like: "claude: /Users/name/.local/bin/claude /usr/local/bin/claude"
+    // or simply paths separated by spaces.
+    let mut paths = Vec::new();
+    let text = if let Some((_bin, rest)) = output_str.split_once(':') {
+        rest
+    } else {
+        output_str
+    };
+
+    for token in text.split_whitespace() {
+        let p = PathBuf::from(token);
+        if p.is_absolute() && p.exists() && p.is_file() {
+            paths.push(p);
+        }
+    }
+    paths
+}
+
 /// Busca o binário no $PATH e em diretórios canônicos do usuário (ex: ~/.local/bin, /opt/homebrew/bin)
 pub fn find_binary_in_path(binary: &str) -> Option<PathBuf> {
     // 1. Tenta buscar no PATH herdado pelo processo
@@ -109,10 +128,11 @@ pub fn find_binary_in_path(binary: &str) -> Option<PathBuf> {
         return Some(path);
     }
 
-    // 2. Em macOS e Linux, apps GUI (.app) iniciados pelo Finder não herdam o PATH do .zshrc/.bashrc
-    // Verifica caminhos padrões onde npm, cargo, pipx e instaladores de CLI costumam colocar binários
+    // 2. Em macOS e Linux, apps GUI (.app) iniciados pelo Finder/Desktop environment
+    // não herdam o PATH customizado do usuário em ~/.zshrc ou ~/.bashrc
     #[cfg(unix)]
     {
+        // 2a. Candidatos canônicos conhecidos de diretórios de usuário e ferramentas (npm, cargo, pipx, bun, pnpm, homebrew)
         let mut candidates = Vec::new();
 
         if let Some(home) = dirs::home_dir() {
@@ -136,17 +156,29 @@ pub fn find_binary_in_path(binary: &str) -> Option<PathBuf> {
             }
         }
 
-        // 3. Consulta o shell de login do usuário (ex: zsh -l -c 'which <binary>')
+        // 2b. Utiliza o comando `whereis <binary>` disponível nativamente no macOS e Linux
+        if let Ok(output) = Command::new("whereis").arg(binary).output() {
+            if output.status.success() {
+                let out_str = String::from_utf8_lossy(&output.stdout);
+                let found_paths = parse_whereis_output(&out_str);
+                if let Some(first) = found_paths.into_iter().next() {
+                    return Some(first);
+                }
+            }
+        }
+
+        // 2c. Invoca subshell interativo e login do usuário (`$SHELL -l -i -c 'which <binary>'`)
+        // No macOS (zsh), ~/.zshrc é lido em subshells interativos (-i).
         let user_shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
         if let Ok(output) = Command::new(&user_shell)
-            .args(["-l", "-c", &format!("which {binary}")])
+            .args(["-l", "-i", "-c", &format!("which {binary}")])
             .output()
         {
             if output.status.success() {
                 let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !found.is_empty() {
                     let pb = PathBuf::from(found);
-                    if pb.exists() {
+                    if pb.exists() && pb.is_file() {
                         return Some(pb);
                     }
                 }
@@ -165,8 +197,21 @@ pub fn find_binary_in_path(binary: &str) -> Option<PathBuf> {
                 home.join(".local").join("bin").join(format!("{binary}.exe")),
             ];
             for p in win_candidates {
-                if p.exists() {
+                if p.exists() && p.is_file() {
                     return Some(p);
+                }
+            }
+        }
+
+        // Tenta 'where <binary>' no Windows
+        if let Ok(output) = Command::new("where").arg(binary).output() {
+            if output.status.success() {
+                let out_str = String::from_utf8_lossy(&output.stdout);
+                for line in out_str.lines() {
+                    let p = PathBuf::from(line.trim());
+                    if p.exists() && p.is_file() {
+                        return Some(p);
+                    }
                 }
             }
         }
@@ -255,4 +300,14 @@ mod tests {
         let win = resolve_claude_desktop_path_with_base(&dummy, "windows");
         assert!(win.to_string_lossy().contains("Claude"));
     }
+
+    #[test]
+    fn test_parse_whereis_output() {
+        // Testing parsing logic with synthetic string
+        let output = "claude: /dummy/nonexistent/claude /another/fake";
+        let paths = parse_whereis_output(output);
+        // Nonexistent files should be filtered out by exists()
+        assert!(paths.is_empty());
+    }
 }
+
