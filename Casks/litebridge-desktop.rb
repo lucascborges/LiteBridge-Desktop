@@ -1,7 +1,7 @@
 cask "litebridge-desktop" do
   arch arm: "aarch64", intel: "x64"
 
-  version "1.1.3"
+  version "1.1.4"
   sha256 :no_check
 
   url "https://github.com/lucascborges/LiteBridge-Desktop/releases/download/v#{version}/LiteBridge.Desktop_#{version}_#{arch}.dmg",
