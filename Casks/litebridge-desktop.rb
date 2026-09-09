@@ -19,6 +19,12 @@ cask "litebridge-desktop" do
 
   app "LiteBridge Desktop.app"
 
+  postflight do
+    system_command "xattr",
+                   args: ["-cr", "#{appdir}/LiteBridge Desktop.app"],
+                   sudo: false
+  end
+
   zap trash: [
     "~/Library/Application Support/com.litebridge.desktop",
     "~/Library/Caches/com.litebridge.desktop",

@@ -31,10 +31,10 @@ Install seamlessly without Gatekeeper quarantine alerts:
 brew tap lucascborges/tap
 
 # Install LiteBridge Desktop
-brew install --cask --no-quarantine litebridge-desktop
+brew install --cask litebridge-desktop
 ```
 
-> **Note:** The `--no-quarantine` flag ensures macOS Gatekeeper does not block the open-source binary upon first launch.
+> **Note:** The Homebrew formula automatically clears Apple's Gatekeeper quarantine attribute during installation, allowing the app to launch immediately without manual permissions tweaks.
 
 #### Option 2: Direct Download (`.dmg`)
 1. Download the latest `.dmg` installer from [Releases](https://github.com/lucascborges/LiteBridge-Desktop/releases).
