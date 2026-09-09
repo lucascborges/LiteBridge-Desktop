@@ -1,7 +1,17 @@
 import React, { useState } from 'react'
-import { Network, PlayCircle, Copy, Check, Terminal as TerminalIcon, AlertCircle, RefreshCw, FolderOpen, BookOpen } from 'lucide-react'
+import {
+  Network,
+  PlayCircle,
+  Copy,
+  Check,
+  Terminal as TerminalIcon,
+  AlertCircle,
+  RefreshCw,
+  FolderOpen,
+  BookOpen,
+} from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
-import { useLaunchTerminal, useMutateClaudeDesktopConfig } from '../hooks/useTauriBridge'
+import { useLaunchTerminal, useMutateClaudeDesktopConfig, useTrackedProcesses } from '../hooks/useTauriBridge'
 
 export const OrchestratorCanvas: React.FC = () => {
   const selectedHarnessId = useAppStore((s) => s.selectedHarnessId)
@@ -21,16 +31,25 @@ export const OrchestratorCanvas: React.FC = () => {
   const setSelectedEmulator = useAppStore((s) => s.setSelectedEmulator)
   const activePid = useAppStore((s) => s.activePid)
 
+  const { data: trackedProcesses = [] } = useTrackedProcesses()
+
   const [copiedBinary, setCopiedBinary] = useState(false)
   const [copiedEnv, setCopiedEnv] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
   const [launchingState, setLaunchingState] = useState<'idle' | 'spawning' | 'success'>('idle')
+  const [launchFeedback, setLaunchFeedback] = useState<string | null>(null)
 
   const launchMutation = useLaunchTerminal()
   const mutateConfigMutation = useMutateClaudeDesktopConfig()
 
   const currentHarness = harnesses.find((h) => h.id === selectedHarnessId) || harnesses[0]
-  const binaryPath = currentHarness.path || (currentHarness.id === 'claude-desktop' ? 'claude_desktop_config.json' : `/usr/local/bin/${currentHarness.binary}`)
+  const binaryPath =
+    currentHarness?.path ||
+    (currentHarness?.id === 'claude-desktop'
+      ? 'claude_desktop_config.json'
+      : currentHarness?.binary
+      ? `/usr/local/bin/${currentHarness.binary}`
+      : 'claude')
 
   const handleCopyBinary = () => {
     navigator.clipboard.writeText(binaryPath).catch(() => {})
@@ -57,36 +76,43 @@ export const OrchestratorCanvas: React.FC = () => {
   const handleLaunchAgent = async () => {
     setLaunchingState('spawning')
 
-    if (currentHarness.id === 'claude-desktop') {
-      await mutateConfigMutation.mutateAsync({
-        gatewayUrl,
-        apiKey,
-        modelMapping: mapping,
-      })
-      setTimeout(() => {
-        setLaunchingState('success')
-        setTimeout(() => setLaunchingState('idle'), 2500)
-      }, 600)
-      return
-    }
+    try {
+      if (currentHarness.id === 'claude-desktop') {
+        const res = await mutateConfigMutation.mutateAsync({
+          gatewayUrl,
+          apiKey,
+          modelMapping: mapping,
+        })
+        setLaunchFeedback(res ? 'Claude Desktop configuration updated & backup saved!' : 'Config injected!')
+      } else {
+        const res = await launchMutation.mutateAsync({
+          binary: currentHarness.binary,
+          emulator: selectedEmulator,
+          envVars: {
+            ANTHROPIC_BASE_URL: gatewayUrl,
+            ANTHROPIC_API_KEY: apiKey,
+            OPENAI_API_BASE: `${gatewayUrl}/v1`,
+            OPENAI_API_KEY: apiKey,
+            CLAUDE_CODE_MODEL: mapping.sonnet,
+          },
+        })
+        setLaunchFeedback(res.message || `Process spawned (PID ${res.pid})`)
+      }
 
-    await launchMutation.mutateAsync({
-      binary: currentHarness.binary,
-      emulator: selectedEmulator,
-      envVars: {
-        ANTHROPIC_BASE_URL: gatewayUrl,
-        ANTHROPIC_API_KEY: apiKey,
-        OPENAI_API_BASE: `${gatewayUrl}/v1`,
-        OPENAI_API_KEY: apiKey,
-        CLAUDE_CODE_MODEL: mapping.sonnet,
-      },
-    })
-
-    setTimeout(() => {
       setLaunchingState('success')
-      setTimeout(() => setLaunchingState('idle'), 2500)
-    }, 600)
+    } catch (err) {
+      setLaunchFeedback(`Launch failed: ${err}`)
+      setLaunchingState('idle')
+    } finally {
+      setTimeout(() => {
+        setLaunchingState('idle')
+        setLaunchFeedback(null)
+      }, 3500)
+    }
   }
+
+  const activeProcessesList = trackedProcesses.filter((p) => p.active)
+  const currentProcess = activeProcessesList.find((p) => p.pid === activePid) || activeProcessesList[0]
 
   return (
     <div className="space-y-4">
@@ -102,16 +128,35 @@ export const OrchestratorCanvas: React.FC = () => {
                 <h1 className="text-xl text-[#e5e1e4] font-semibold tracking-tight">
                   {currentHarness.name}
                 </h1>
-                <span className="px-2 py-0.5 rounded font-mono text-xs bg-[#201f22] text-[#bbcabf] border border-[#27272a]">
-                  {currentHarness.version || 'v2.1.263'}
-                </span>
+                {currentHarness.version ? (
+                  <span className="px-2 py-0.5 rounded font-mono text-xs bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/30">
+                    {currentHarness.version}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded font-mono text-xs bg-[#201f22] text-[#86948a] border border-[#27272a]">
+                    Version unindexed
+                  </span>
+                )}
+
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0e0e10] border border-[#27272a]">
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10b981]" />
+                    <span
+                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        currentHarness.detected ? 'bg-[#10b981]' : 'bg-[#86948a]'
+                      }`}
+                    />
+                    <span
+                      className={`relative inline-flex rounded-full h-2 w-2 ${
+                        currentHarness.detected ? 'bg-[#10b981]' : 'bg-[#86948a]'
+                      }`}
+                    />
                   </span>
-                  <span className="font-mono text-[10px] text-[#10b981] uppercase font-bold tracking-wider">
-                    {currentHarness.status} & Ready
+                  <span
+                    className={`font-mono text-[10px] uppercase font-bold tracking-wider ${
+                      currentHarness.detected ? 'text-[#10b981]' : 'text-[#86948a]'
+                    }`}
+                  >
+                    {currentHarness.status}
                   </span>
                 </div>
               </div>
@@ -121,19 +166,27 @@ export const OrchestratorCanvas: React.FC = () => {
                   Binary / Target Path
                 </span>
                 <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-[#0e0e10] font-mono text-xs text-[#e5e1e4] border border-[#27272a]">
-                  <span className="text-[#10b981]">{binaryPath}</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyBinary}
-                    className="text-[#86948a] hover:text-[#10b981] transition-colors"
-                    title="Copy path"
-                  >
-                    {copiedBinary ? <Check className="w-3.5 h-3.5 text-[#10b981]" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <span className={currentHarness.path ? 'text-[#10b981]' : 'text-[#86948a]'}>
+                    {currentHarness.path || 'Not found in $PATH'}
+                  </span>
+                  {currentHarness.path && (
+                    <button
+                      type="button"
+                      onClick={handleCopyBinary}
+                      className="text-[#86948a] hover:text-[#10b981] transition-colors cursor-pointer"
+                      title="Copy path"
+                    >
+                      {copiedBinary ? (
+                        <Check className="w-3.5 h-3.5 text-[#10b981]" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  )}
                 </div>
                 <span className="text-[#3c4a42]">•</span>
                 <span className="font-mono text-xs text-[#bbcabf]">
-                  Target Arch: <span className="text-[#e5e1e4]">{targetArch}</span>
+                  Target Arch: <span className="text-[#e5e1e4]">{targetArch || 'Detecting...'}</span>
                 </span>
               </div>
             </div>
@@ -143,7 +196,7 @@ export const OrchestratorCanvas: React.FC = () => {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-[#10b981]" />
               <span>Detect Again</span>
@@ -174,18 +227,15 @@ export const OrchestratorCanvas: React.FC = () => {
             <span>LiteLLM Proxy: {gatewayUrl}</span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[#bbcabf]">
-            <span className="text-[#e5e1e4]">Connected</span>
+            <span className="text-[#e5e1e4]">
+              {models.length > 0 ? 'Connected' : 'Waiting connection'}
+            </span>
             <span>•</span>
             <span className="text-[#4cd7f6]">{models.length} models upstream</span>
             <span>•</span>
-            <span className="text-[#10b981]">18ms latency</span>
-            <span>•</span>
-            <span className="text-[#86948a]">Key: {maskedKey}</span>
+            <span className="text-[#86948a]">Key: {maskedKey || 'No key set'}</span>
           </div>
         </div>
-        <span className="font-mono text-xs text-[#10b981] hover:underline cursor-pointer">
-          Manage Gateway Settings &rarr;
-        </span>
       </div>
 
       {/* 2-Column Grid Canvas */}
@@ -222,20 +272,21 @@ export const OrchestratorCanvas: React.FC = () => {
                     Architectural Reasoning
                   </span>
                 </div>
-                <div className="font-mono text-[11px] text-[#bbcabf]">
-                  <span>$15.00 / 1M</span> • <span className="text-[#ffb95f]">~1,420ms</span>
-                </div>
               </div>
               <select
                 value={mapping.opus}
                 onChange={(e) => setMappingRole('opus', e.target.value)}
                 className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
               >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
+                {models.length === 0 ? (
+                  <option value={mapping.opus}>{mapping.opus}</option>
+                ) : (
+                  models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -251,21 +302,21 @@ export const OrchestratorCanvas: React.FC = () => {
                     Active Workhorse
                   </span>
                 </div>
-                <div className="font-mono text-[11px] text-[#bbcabf]">
-                  <span className="text-[#10b981]">$0.00 / Free tier</span> •{' '}
-                  <span className="text-[#10b981]">~320ms</span>
-                </div>
               </div>
               <select
                 value={mapping.sonnet}
                 onChange={(e) => setMappingRole('sonnet', e.target.value)}
                 className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#10b981]/50 focus:outline-none focus:border-[#10b981] cursor-pointer"
               >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
+                {models.length === 0 ? (
+                  <option value={mapping.sonnet}>{mapping.sonnet}</option>
+                ) : (
+                  models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -278,11 +329,8 @@ export const OrchestratorCanvas: React.FC = () => {
                     Fast • Claude Haiku Target
                   </span>
                   <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-[#2a2a2c] text-[#4cd7f6]">
-                    Cache Hit: 88%
+                    Fast Summaries & Scans
                   </span>
-                </div>
-                <div className="font-mono text-[11px] text-[#bbcabf]">
-                  <span>$0.25 / 1M</span> • <span className="text-[#4cd7f6]">~110ms</span>
                 </div>
               </div>
               <select
@@ -290,11 +338,15 @@ export const OrchestratorCanvas: React.FC = () => {
                 onChange={(e) => setMappingRole('haiku', e.target.value)}
                 className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
               >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
+                {models.length === 0 ? (
+                  <option value={mapping.haiku}>{mapping.haiku}</option>
+                ) : (
+                  models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -414,7 +466,7 @@ export const OrchestratorCanvas: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 5 Columns: Injection Engine B & Launch Controls */}
+        {/* Right 5 Columns: Injection Engine & Launch Controls */}
         <div className="xl:col-span-5 space-y-4">
           <div className="rounded-xl bg-[#1c1b1d] p-4 border border-[#27272a] shadow-sm space-y-4">
             <div className="flex items-center justify-between">
@@ -461,10 +513,14 @@ export const OrchestratorCanvas: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCopyEnv}
-                  className="absolute top-2 right-2 p-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] text-[#86948a] hover:text-[#e5e1e4] transition-colors"
+                  className="absolute top-2 right-2 p-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] text-[#86948a] hover:text-[#e5e1e4] transition-colors cursor-pointer"
                   title="Copy Environment Block"
                 >
-                  {copiedEnv ? <Check className="w-3.5 h-3.5 text-[#10b981]" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedEnv ? (
+                    <Check className="w-3.5 h-3.5 text-[#10b981]" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                 </button>
                 <div className="space-y-1 text-[#bbcabf]">
                   <div>
@@ -473,7 +529,9 @@ export const OrchestratorCanvas: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-[#4cd7f6]">export</span> ANTHROPIC_API_KEY=
-                    <span className="text-[#ffb95f]">"{maskedKey}"</span>
+                    <span className="text-[#ffb95f]">
+                      "{maskedKey || 'sk-litellm-...'}"
+                    </span>
                   </div>
                   <div>
                     <span className="text-[#4cd7f6]">export</span> OPENAI_API_BASE=
@@ -517,11 +575,7 @@ export const OrchestratorCanvas: React.FC = () => {
                 ) : launchingState === 'success' ? (
                   <>
                     <Check className="w-5 h-5" />
-                    <span>
-                      {currentHarness.id === 'claude-desktop'
-                        ? 'Config Injected & Backup Created!'
-                        : `Agent Spawned (PID ${activePid || 48292})`}
-                    </span>
+                    <span>{launchFeedback || 'Agent Process Spawned!'}</span>
                   </>
                 ) : (
                   <>
@@ -539,7 +593,7 @@ export const OrchestratorCanvas: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCopyCmd}
-                  className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a]"
+                  className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a] cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>{copiedCmd ? 'Copied!' : 'Copy Launch CMD'}</span>
@@ -547,7 +601,7 @@ export const OrchestratorCanvas: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#ffb4ab] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a]"
+                  className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#ffb4ab] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a] cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Reset Defaults</span>
@@ -574,28 +628,41 @@ export const OrchestratorCanvas: React.FC = () => {
         </div>
       </div>
 
-      {/* Subprocess Status Drawer */}
+      {/* Subprocess Status Drawer (Live Process Telemetry) */}
       <div className="rounded-xl bg-[#0e0e10] p-2.5 border border-[#27272a] shadow-inner flex flex-col md:flex-row md:items-center justify-between gap-2 text-[#bbcabf] font-mono text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#201f22] text-[#10b981]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-            <span className="font-bold">Active Processes: 1 spawned</span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                activeProcessesList.length > 0 ? 'bg-[#10b981] animate-pulse' : 'bg-[#86948a]'
+              }`}
+            />
+            <span className="font-bold">
+              Active Processes: {activeProcessesList.length} spawned
+            </span>
           </div>
           <span className="text-[#3c4a42]">•</span>
           <span className="text-[#e5e1e4]">
-            PID <span className="text-[#4cd7f6] font-semibold">{activePid || 48291}</span>
+            PID{' '}
+            <span className="text-[#4cd7f6] font-semibold">
+              {currentProcess ? currentProcess.pid : 'None'}
+            </span>
           </span>
           <span className="text-[#3c4a42]">•</span>
           <span>
-            Uptime <span className="text-[#e5e1e4]">14m 32s</span>
+            Memory (RSS):{' '}
+            <span className="text-[#e5e1e4]">
+              {currentProcess
+                ? `${(currentProcess.memory_rss_bytes / (1024 * 1024)).toFixed(1)} MB`
+                : '0 MB'}
+            </span>
           </span>
           <span className="text-[#3c4a42]">•</span>
           <span>
-            Resident Memory: <span className="text-[#e5e1e4]">42.4 MB</span>
-          </span>
-          <span className="text-[#3c4a42]">•</span>
-          <span className="text-[#e5e1e4]">
-            Proxy Requests: <span className="text-[#10b981] font-bold">128</span> (0 errors)
+            Uptime:{' '}
+            <span className="text-[#e5e1e4]">
+              {currentProcess ? `${currentProcess.uptime_secs}s` : '0s'}
+            </span>
           </span>
         </div>
       </div>

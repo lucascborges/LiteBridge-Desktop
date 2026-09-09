@@ -1,5 +1,12 @@
 import { create } from 'zustand'
-import type { HarnessInfo, ModelRoleMapping, ContextPolicy, BackupInfo } from '../types'
+import type {
+  HarnessInfo,
+  ModelRoleMapping,
+  ContextPolicy,
+  BackupInfo,
+  ProcessMeta,
+  AppSettingsPayload,
+} from '../types'
 
 interface AppState {
   gatewayUrl: string
@@ -40,27 +47,37 @@ interface AppState {
   selectedEmulator: string
   setSelectedEmulator: (emu: string) => void
 
+  trackedProcesses: ProcessMeta[]
+  setTrackedProcesses: (processes: ProcessMeta[]) => void
   activePid: number | null
   setActivePid: (pid: number | null) => void
+
+  customAliases: Record<string, string>
+  setCustomAlias: (alias: string, targetModel: string) => void
+  removeCustomAlias: (alias: string) => void
 
   backups: BackupInfo[]
   setBackups: (backups: BackupInfo[]) => void
 
   ipcLogs: string[]
   addIpcLog: (log: string) => void
+
+  applyLoadedSettings: (settings: AppSettingsPayload) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
   gatewayUrl: 'http://localhost:4000',
-  apiKey: 'sk-litellm-virtual-team-key',
-  maskedKey: 'sk-l***-key',
+  apiKey: '',
+  maskedKey: '',
   setGatewayUrl: (url) => set({ gatewayUrl: url }),
   setApiKey: (key) => {
     const trimmed = key.trim()
     const masked =
       trimmed.length > 8
         ? `${trimmed.slice(0, 4)}***${trimmed.slice(-4)}`
-        : '********'
+        : trimmed.length > 0
+        ? '********'
+        : ''
     set({ apiKey: key, maskedKey: masked })
   },
 
@@ -72,18 +89,18 @@ export const useAppStore = create<AppState>((set) => ({
       id: 'claude-code',
       name: 'Claude Code',
       binary: 'claude',
-      path: '/usr/local/bin/claude',
-      detected: true,
-      status: 'DETECTED',
-      version: 'v2.1.263',
+      path: null,
+      detected: false,
+      status: 'INACTIVE',
+      version: null,
     },
     {
       id: 'claude-desktop',
       name: 'Claude Desktop',
       binary: 'claude-desktop',
       path: null,
-      detected: true,
-      status: 'DETECTED',
+      detected: false,
+      status: 'INACTIVE',
     },
     {
       id: 'codex-cli',
@@ -120,10 +137,10 @@ export const useAppStore = create<AppState>((set) => ({
   ],
   setHarnesses: (harnesses) => set({ harnesses }),
 
-  claudeDesktopConfigPath: '~/Library/Application Support/Claude/claude_desktop_config.json',
-  claudeDesktopExists: true,
-  targetOs: 'darwin',
-  targetArch: 'arm64-apple-darwin',
+  claudeDesktopConfigPath: '',
+  claudeDesktopExists: false,
+  targetOs: '',
+  targetArch: '',
   setSystemScan: ({ harnesses, configPath, exists, os, arch }) =>
     set({
       harnesses,
@@ -133,14 +150,7 @@ export const useAppStore = create<AppState>((set) => ({
       targetArch: arch,
     }),
 
-  models: [
-    'gemini-2.5-flash-thinking',
-    'claude-3-5-sonnet-20241022',
-    'bedrock/anthropic.claude-3-opus-20240229-v1:0',
-    'claude-3-5-haiku-20241022',
-    'deepseek/deepseek-coder-v2.5',
-    'groq/llama-3.3-70b-versatile',
-  ],
+  models: [],
   setModels: (models) => set({ models }),
 
   mapping: {
@@ -175,15 +185,63 @@ export const useAppStore = create<AppState>((set) => ({
   selectedEmulator: 'Terminal.app (macOS default)',
   setSelectedEmulator: (emu) => set({ selectedEmulator: emu }),
 
-  activePid: 48291,
+  trackedProcesses: [],
+  setTrackedProcesses: (processes) =>
+    set({
+      trackedProcesses: processes,
+      activePid: processes.find((p) => p.active)?.pid ?? null,
+    }),
+  activePid: null,
   setActivePid: (pid) => set({ activePid: pid }),
+
+  customAliases: {
+    'sonnet-workhorse': 'gemini-2.5-flash-thinking',
+    'fast-indexer': 'claude-3-5-haiku-20241022',
+  },
+  setCustomAlias: (alias, targetModel) =>
+    set((state) => ({
+      customAliases: { ...state.customAliases, [alias]: targetModel },
+    })),
+  removeCustomAlias: (alias) =>
+    set((state) => {
+      const next = { ...state.customAliases }
+      delete next[alias]
+      return { customAliases: next }
+    }),
 
   backups: [],
   setBackups: (backups) => set({ backups }),
 
-  ipcLogs: [
-    '[IPC] System initialization ready',
-    '[IPC] Config loaded for Claude Code',
-  ],
-  addIpcLog: (log) => set((state) => ({ ipcLogs: [log, ...state.ipcLogs.slice(0, 49)] })),
+  ipcLogs: ['[IPC] Core initialized'],
+  addIpcLog: (log) =>
+    set((state) => ({ ipcLogs: [log, ...state.ipcLogs.slice(0, 99)] })),
+
+  applyLoadedSettings: (settings) => {
+    const trimmed = settings.api_key.trim()
+    const masked =
+      trimmed.length > 8
+        ? `${trimmed.slice(0, 4)}***${trimmed.slice(-4)}`
+        : trimmed.length > 0
+        ? '********'
+        : ''
+
+    set({
+      gatewayUrl: settings.gateway_url,
+      apiKey: settings.api_key,
+      maskedKey: masked,
+      selectedEmulator: settings.selected_emulator,
+      customAliases: settings.custom_aliases || {},
+      mapping: {
+        opus: settings.model_mapping.opus,
+        sonnet: settings.model_mapping.sonnet,
+        haiku: settings.model_mapping.haiku,
+        fallbackEnabled: settings.model_mapping.fallback_enabled,
+      },
+      contextPolicy: {
+        maxContextTokens: settings.context_policy.max_context_tokens,
+        compactThresholdPercent: settings.context_policy.compact_threshold_percent,
+        streamTokenLimit: settings.context_policy.stream_token_limit,
+      },
+    })
+  },
 }))

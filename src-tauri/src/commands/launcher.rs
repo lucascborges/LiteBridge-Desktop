@@ -1,6 +1,23 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Command;
+use std::sync::Mutex;
+use std::time::Instant;
+use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProcessMeta {
+    pub pid: u32,
+    pub binary: String,
+    pub started_at_epoch: u64,
+    pub emulator: String,
+    pub command_str: String,
+    pub active: bool,
+    pub memory_rss_bytes: u64,
+    pub cpu_usage_pct: f32,
+    pub uptime_secs: u64,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LaunchTerminalPayload {
@@ -19,9 +36,12 @@ pub struct LaunchResult {
     pub message: String,
 }
 
+// Registro em memória thread-safe para processos disparados pelo LiteBridge
+static PROCESS_REGISTRY: Lazy<Mutex<HashMap<u32, (ProcessMeta, Instant)>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
 /// Sanitiza strings prevenindo Command Injection (OWASP A03)
 pub fn sanitize_env_value(val: &str) -> String {
-    // Remove quebras de linha e caracteres nulos que podem ser usados em injection
     val.replace('\r', "").replace('\n', "").replace('\0', "")
 }
 
@@ -56,10 +76,8 @@ pub fn spawn_terminal_platform(
 ) -> Result<LaunchResult, String> {
     let chosen_emulator = emulator.unwrap_or("Terminal.app");
 
-    // Monta variáveis de exportação no shell temporário
     let mut export_prefix = String::new();
     for (k, v) in env_vars {
-        // Assegura escape de aspas simples
         let escaped_val = v.replace('\'', "'\\''");
         export_prefix.push_str(&format!("export {k}='{escaped_val}'; "));
     }
@@ -110,7 +128,6 @@ pub fn spawn_terminal_platform(
     let args_str = args.join(" ");
     let ps_full_script = format!("{ps_env_setup}& '{binary}' {args_str}");
 
-    // Tenta wt.exe primeiro se disponível ou especificado, senão fallback powershell.exe
     let mut wt_attempt = false;
     if chosen_emulator.contains("wt") || which::which("wt.exe").is_ok() {
         let mut cmd = Command::new("wt.exe");
@@ -124,14 +141,13 @@ pub fn spawn_terminal_platform(
                 success: true,
                 pid: Some(child.id()),
                 emulator_used: "Windows Terminal (wt.exe)".to_string(),
-                command_str: format!("wt.exe new-tab powershell.exe -NoExit -Command ..."),
+                command_str: "wt.exe new-tab powershell.exe -NoExit -Command ...".to_string(),
                 message: "Spawned in Windows Terminal with isolated environment".to_string(),
             });
         }
         wt_attempt = true;
     }
 
-    // Fallback nativo: powershell.exe com sessão mantida (-NoExit)
     let mut cmd = Command::new("powershell.exe");
     cmd.args(["-NoExit", "-Command", &ps_full_script]);
     for (k, v) in env_vars {
@@ -148,7 +164,7 @@ pub fn spawn_terminal_platform(
         success: true,
         pid: Some(child.id()),
         emulator_used: "PowerShell (powershell.exe)".to_string(),
-        command_str: format!("powershell.exe -NoExit -Command ..."),
+        command_str: "powershell.exe -NoExit -Command ...".to_string(),
         message: "Spawned in standalone PowerShell session with isolated environment".to_string(),
     })
 }
@@ -226,7 +242,78 @@ pub async fn launch_scoped_terminal(payload: LaunchTerminalPayload) -> Result<La
     let args = payload.args.unwrap_or_default();
     let emulator = payload.emulator.as_deref();
 
-    spawn_terminal_platform(binary, &args, emulator, &payload.env_vars)
+    let res = spawn_terminal_platform(binary, &args, emulator, &payload.env_vars)?;
+
+    if let Some(pid) = res.pid {
+        let meta = ProcessMeta {
+            pid,
+            binary: binary.to_string(),
+            started_at_epoch: chrono::Utc::now().timestamp() as u64,
+            emulator: res.emulator_used.clone(),
+            command_str: res.command_str.clone(),
+            active: true,
+            memory_rss_bytes: 0,
+            cpu_usage_pct: 0.0,
+            uptime_secs: 0,
+        };
+
+        if let Ok(mut registry) = PROCESS_REGISTRY.lock() {
+            registry.insert(pid, (meta, Instant::now()));
+        }
+    }
+
+    Ok(res)
+}
+
+#[tauri::command]
+pub async fn list_tracked_processes() -> Result<Vec<ProcessMeta>, String> {
+    let mut s = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::new().with_memory().with_cpu()),
+    );
+    s.refresh_processes();
+
+    let mut result = Vec::new();
+
+    if let Ok(mut registry) = PROCESS_REGISTRY.lock() {
+        for (pid, (meta, instant)) in registry.iter_mut() {
+            let sys_pid = Pid::from(*pid as usize);
+            if let Some(process) = s.process(sys_pid) {
+                meta.active = true;
+                meta.memory_rss_bytes = process.memory();
+                meta.cpu_usage_pct = process.cpu_usage();
+                meta.uptime_secs = instant.elapsed().as_secs();
+            } else {
+                meta.active = false;
+                meta.uptime_secs = instant.elapsed().as_secs();
+            }
+            result.push(meta.clone());
+        }
+    }
+
+    result.sort_by(|a, b| b.started_at_epoch.cmp(&a.started_at_epoch));
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn kill_tracked_process(pid: u32) -> Result<bool, String> {
+    let s = System::new_with_specifics(
+        RefreshKind::new().with_processes(ProcessRefreshKind::new()),
+    );
+    let sys_pid = Pid::from(pid as usize);
+
+    let killed = if let Some(process) = s.process(sys_pid) {
+        process.kill()
+    } else {
+        false
+    };
+
+    if let Ok(mut registry) = PROCESS_REGISTRY.lock() {
+        if let Some((meta, _)) = registry.get_mut(&pid) {
+            meta.active = false;
+        }
+    }
+
+    Ok(killed)
 }
 
 #[cfg(test)]

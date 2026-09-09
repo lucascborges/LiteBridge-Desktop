@@ -1,5 +1,7 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HarnessInfo {
@@ -38,6 +40,28 @@ pub fn sanitize_binary_name(name: &str) -> Result<String, String> {
         return Err("Binary name cannot contain path separators or control characters".to_string());
     }
     Ok(trimmed.to_string())
+}
+
+/// Extrai a versão real do binário invocando --version com timeout seguro
+pub fn detect_binary_version(binary_path: &Path) -> Option<String> {
+    let output = Command::new(binary_path)
+        .arg("--version")
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{stdout_str} {stderr_str}");
+
+    // Procura por versões semânticas como v1.2.3, 2.1.263, 0.45.0
+    let re = Regex::new(r"v?(\d+\.\d+(\.\d+)?)").ok()?;
+    re.captures(&combined)
+        .and_then(|cap| cap.get(1))
+        .map(|m| format!("v{}", m.as_str()))
 }
 
 /// Localiza o caminho de configuração canônico do Claude Desktop para o sistema operacional alvo
@@ -101,7 +125,8 @@ pub async fn scan_system() -> Result<SystemScanResult, String> {
     for (id, name, bin) in harness_defs {
         let binary_path = find_binary_in_path(bin);
         let detected = binary_path.is_some();
-        let path_str = binary_path.map(|p| p.to_string_lossy().to_string());
+        let path_str = binary_path.as_ref().map(|p| p.to_string_lossy().to_string());
+        let version_str = binary_path.as_ref().and_then(|p| detect_binary_version(p));
 
         let status = if id == "claude-desktop" && claude_cfg_exists {
             "DETECTED".to_string()
@@ -120,7 +145,7 @@ pub async fn scan_system() -> Result<SystemScanResult, String> {
             path: path_str,
             detected: detected || (id == "claude-desktop" && claude_cfg_exists),
             status,
-            version: None,
+            version: version_str,
         });
     }
 
