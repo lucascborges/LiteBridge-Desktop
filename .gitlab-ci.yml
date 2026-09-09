@@ -1,0 +1,96 @@
+stages:
+  - test
+  - build
+  - release
+
+default:
+  interruptible: true
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - node_modules/
+    - .cargo/
+    - src-tauri/target/
+
+test:frontend_and_backend:
+  stage: test
+  image: node:20-bookworm
+  before_script:
+    - apt-get update && apt-get install -y curl build-essential libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source "$HOME/.cargo/env"
+  script:
+    - npm ci
+    - npm run test
+    - cargo test --manifest-path src-tauri/Cargo.toml
+
+build:macos-arm64:
+  stage: build
+  tags:
+    - saas-macos-medium-m1
+  before_script:
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target aarch64-apple-darwin
+    - source "$HOME/.cargo/env"
+    - npm ci
+  script:
+    - npm run build
+    - npx @tauri-apps/cli build --target aarch64-apple-darwin
+  artifacts:
+    name: "LiteBridge-Desktop-macOS-arm64-$CI_COMMIT_REF_SLUG"
+    paths:
+      - src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+      - src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
+    expire_in: 30 days
+
+build:macos-x86_64:
+  stage: build
+  tags:
+    - saas-macos-medium-m1
+  before_script:
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --target x86_64-apple-darwin
+    - source "$HOME/.cargo/env"
+    - npm ci
+  script:
+    - npm run build
+    - npx @tauri-apps/cli build --target x86_64-apple-darwin
+  artifacts:
+    name: "LiteBridge-Desktop-macOS-x86_64-$CI_COMMIT_REF_SLUG"
+    paths:
+      - src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+      - src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app
+    expire_in: 30 days
+
+build:linux:
+  stage: build
+  image: node:20-bookworm
+  before_script:
+    - apt-get update && apt-get install -y curl build-essential libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev file
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    - source "$HOME/.cargo/env"
+    - npm ci
+  script:
+    - npm run build
+    - npx @tauri-apps/cli build
+  artifacts:
+    name: "LiteBridge-Desktop-Linux-$CI_COMMIT_REF_SLUG"
+    paths:
+      - src-tauri/target/release/bundle/deb/*.deb
+      - src-tauri/target/release/bundle/appimage/*.AppImage
+    expire_in: 30 days
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+  release:
+    name: 'LiteBridge Desktop $CI_COMMIT_TAG'
+    description: 'LiteBridge Desktop Release $CI_COMMIT_TAG with cross-platform desktop bundles for macOS (Apple Silicon arm64 & Intel x86_64), Linux and Windows.'
+    tag_name: '$CI_COMMIT_TAG'
+    ref: '$CI_COMMIT_TAG'

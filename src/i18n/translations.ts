@@ -4,7 +4,7 @@ export const translations = {
   en: {
     // Header
     appTitle: 'LiteBridge Desktop',
-    appSubtitle: 'v1.0.0-MVP',
+    appSubtitle: 'v1.1.0',
     gatewayConnected: 'LiteLLM: Connected',
     gatewayOffline: 'LiteLLM: Offline',
     ipcDiagnostics: 'Diagnostics',
@@ -170,7 +170,7 @@ export const translations = {
   pt: {
     // Header
     appTitle: 'LiteBridge Desktop',
-    appSubtitle: 'v1.0.0-MVP',
+    appSubtitle: 'v1.1.0',
     gatewayConnected: 'LiteLLM: Conectado',
     gatewayOffline: 'LiteLLM: Desconectado',
     ipcDiagnostics: 'Diagnósticos',
@@ -336,7 +336,7 @@ export const translations = {
   es: {
     // Header
     appTitle: 'LiteBridge Desktop',
-    appSubtitle: 'v1.0.0-MVP',
+    appSubtitle: 'v1.1.0',
     gatewayConnected: 'LiteLLM: Conectado',
     gatewayOffline: 'LiteLLM: Desconectado',
     ipcDiagnostics: 'Diagnósticos',
