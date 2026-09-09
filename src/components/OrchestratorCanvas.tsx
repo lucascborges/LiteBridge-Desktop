@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { useLaunchTerminal, useMutateClaudeDesktopConfig, useTrackedProcesses } from '../hooks/useTauriBridge'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const OrchestratorCanvas: React.FC = () => {
   const selectedHarnessId = useAppStore((s) => s.selectedHarnessId)
@@ -30,6 +31,7 @@ export const OrchestratorCanvas: React.FC = () => {
   const selectedEmulator = useAppStore((s) => s.selectedEmulator)
   const setSelectedEmulator = useAppStore((s) => s.setSelectedEmulator)
   const activePid = useAppStore((s) => s.activePid)
+  const { t } = useTranslation()
 
   const { data: trackedProcesses = [] } = useTrackedProcesses()
 
@@ -74,6 +76,13 @@ export const OrchestratorCanvas: React.FC = () => {
   }
 
   const handleLaunchAgent = async () => {
+    if (currentHarness.id !== 'claude-desktop' && !currentHarness.detected) {
+      setLaunchFeedback(t('binaryNotInstalled', { name: currentHarness.name }))
+      setLaunchingState('idle')
+      setTimeout(() => setLaunchFeedback(null), 4000)
+      return
+    }
+
     setLaunchingState('spawning')
 
     try {
@@ -134,7 +143,7 @@ export const OrchestratorCanvas: React.FC = () => {
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded font-mono text-xs bg-[#201f22] text-[#86948a] border border-[#27272a]">
-                    Version unindexed
+                    {t('versionUnindexed')}
                   </span>
                 )}
 
@@ -156,7 +165,7 @@ export const OrchestratorCanvas: React.FC = () => {
                       currentHarness.detected ? 'text-[#10b981]' : 'text-[#86948a]'
                     }`}
                   >
-                    {currentHarness.status}
+                    {currentHarness.detected ? t('detected') : t('configOnly')}
                   </span>
                 </div>
               </div>
@@ -167,7 +176,7 @@ export const OrchestratorCanvas: React.FC = () => {
                 </span>
                 <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-[#0e0e10] font-mono text-xs text-[#e5e1e4] border border-[#27272a]">
                   <span className={currentHarness.path ? 'text-[#10b981]' : 'text-[#86948a]'}>
-                    {currentHarness.path || 'Not found in $PATH'}
+                    {currentHarness.path || t('notFoundInPath')}
                   </span>
                   {currentHarness.path && (
                     <button
@@ -186,7 +195,7 @@ export const OrchestratorCanvas: React.FC = () => {
                 </div>
                 <span className="text-[#3c4a42]">•</span>
                 <span className="font-mono text-xs text-[#bbcabf]">
-                  Target Arch: <span className="text-[#e5e1e4]">{targetArch || 'Detecting...'}</span>
+                  {t('targetArch')}: <span className="text-[#e5e1e4]">{targetArch || 'Detecting...'}</span>
                 </span>
               </div>
             </div>
@@ -199,21 +208,21 @@ export const OrchestratorCanvas: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-[#10b981]" />
-              <span>Detect Again</span>
+              <span>{t('detectAgain')}</span>
             </button>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              <span>Open Folder</span>
+              <span>{t('openFolder')}</span>
             </button>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Docs</span>
+              <span>{t('docs')}</span>
             </button>
           </div>
         </div>
@@ -248,15 +257,15 @@ export const OrchestratorCanvas: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Network className="w-4 h-4 text-[#10b981]" />
                   <h2 className="text-base text-[#e5e1e4] font-semibold">
-                    Model Role Routing Matrix
+                    {t('modelRoutingMatrix')}
                   </h2>
                 </div>
                 <p className="text-xs text-[#bbcabf]">
-                  Maps {currentHarness.name} agent dispatchers to localized LiteLLM proxy routes.
+                  {t('modelRoutingDesc')}
                 </p>
               </div>
               <span className="px-2 py-0.5 rounded font-mono text-[10px] bg-[#201f22] text-[#4cd7f6] uppercase font-bold tracking-wider border border-[#27272a]">
-                Zero-Lockin
+                {t('zeroLockin')}
               </span>
             </div>
 
@@ -266,10 +275,10 @@ export const OrchestratorCanvas: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#ffb95f]" />
                   <span className="font-mono text-[11px] text-[#e5e1e4] font-bold uppercase tracking-wider">
-                    Primary • Claude Opus Tier
+                    {t('primaryOpusTier')}
                   </span>
                   <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-[#2a2a2c] text-[#ffb95f]">
-                    Architectural Reasoning
+                    {t('architecturalReasoning')}
                   </span>
                 </div>
               </div>
@@ -296,10 +305,10 @@ export const OrchestratorCanvas: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                   <span className="font-mono text-[11px] text-[#e5e1e4] font-bold uppercase tracking-wider">
-                    Coding • Claude Sonnet Target
+                    {t('codingSonnetTarget')}
                   </span>
                   <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-[#10b981]/10 text-[#10b981] font-semibold">
-                    Active Workhorse
+                    {t('activeWorkhorse')}
                   </span>
                 </div>
               </div>
@@ -326,10 +335,10 @@ export const OrchestratorCanvas: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#4cd7f6]" />
                   <span className="font-mono text-[11px] text-[#e5e1e4] font-bold uppercase tracking-wider">
-                    Fast • Claude Haiku Target
+                    {t('fastHaikuTarget')}
                   </span>
                   <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-[#2a2a2c] text-[#4cd7f6]">
-                    Fast Summaries & Scans
+                    {t('fastSummariesScans')}
                   </span>
                 </div>
               </div>
@@ -368,15 +377,15 @@ export const OrchestratorCanvas: React.FC = () => {
                 </button>
                 <div>
                   <span className="text-xs text-[#e5e1e4] font-medium block">
-                    Fallback routing on 429/500 errors
+                    {t('fallbackRoutingTitle')}
                   </span>
                   <span className="font-mono text-[11px] text-[#bbcabf] block">
-                    Auto-switches to Secondary LiteLLM cluster without CLI interruption
+                    {t('fallbackRoutingDesc')}
                   </span>
                 </div>
               </div>
               <span className="font-mono text-[10px] text-[#10b981] font-bold uppercase">
-                {mapping.fallbackEnabled ? 'Enabled' : 'Disabled'}
+                {mapping.fallbackEnabled ? t('enabled') : t('disabled')}
               </span>
             </div>
           </div>
@@ -385,26 +394,26 @@ export const OrchestratorCanvas: React.FC = () => {
           <div className="rounded-xl bg-[#1c1b1d] p-4 border border-[#27272a] shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base text-[#e5e1e4] font-semibold">
-                Context Policies & Token Budget
+                {t('contextPoliciesTitle')}
               </h2>
-              <span className="font-mono text-xs text-[#bbcabf]">Active Profile</span>
+              <span className="font-mono text-xs text-[#bbcabf]">{t('activeProfile')}</span>
             </div>
 
             <div className="bg-[#201f22] p-3 rounded-lg border border-[#27272a] space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-mono text-[11px] text-[#bbcabf] uppercase font-bold tracking-wider">
-                    Max Context Window Bound
+                    {t('maxContextBound')}
                   </span>
                   <p className="text-xs text-[#bbcabf]">
-                    Prevents CLI unbounded prompt swelling during extensive repository indexing.
+                    {t('maxContextDesc')}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="px-2 py-1 rounded bg-[#0e0e10] text-[#10b981] font-mono text-xs font-semibold border border-[#27272a]">
                     {contextPolicy.maxContextTokens.toLocaleString()}
                   </span>
-                  <span className="text-xs text-[#bbcabf]">tokens</span>
+                  <span className="text-xs text-[#bbcabf]">{t('tokens')}</span>
                 </div>
               </div>
               <input
@@ -427,7 +436,7 @@ export const OrchestratorCanvas: React.FC = () => {
               <div className="bg-[#201f22] p-3 rounded-lg border border-[#27272a] space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[11px] text-[#bbcabf] uppercase font-bold">
-                    Auto-Compact Threshold
+                    {t('autoCompactThreshold')}
                   </span>
                   <span className="font-mono text-xs font-bold text-[#ffb95f]">
                     {contextPolicy.compactThresholdPercent}%
@@ -442,21 +451,21 @@ export const OrchestratorCanvas: React.FC = () => {
                   className="w-full h-1.5 bg-[#0e0e10] rounded-lg appearance-none cursor-pointer accent-[#ffb95f]"
                 />
                 <p className="text-[11px] text-[#bbcabf] leading-snug">
-                  Triggers agent compact hook before context window exhaustion.
+                  {t('autoCompactDesc')}
                 </p>
               </div>
 
               <div className="bg-[#201f22] p-3 rounded-lg border border-[#27272a] space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[11px] text-[#bbcabf] uppercase font-bold">
-                    Stream Token Limit
+                    {t('streamTokenLimit')}
                   </span>
                   <span className="font-mono text-xs font-bold text-[#4cd7f6]">
                     {contextPolicy.streamTokenLimit.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between pt-2 text-xs">
-                  <span className="text-[#bbcabf]">Per Turn Response</span>
+                  <span className="text-[#bbcabf]">{t('perTurnResponse')}</span>
                   <span className="px-2 py-0.5 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-[11px] border border-[#27272a]">
                     Chunked HTTP/2
                   </span>
@@ -474,8 +483,8 @@ export const OrchestratorCanvas: React.FC = () => {
                 <PlayCircle className="w-4 h-4 text-[#10b981]" />
                 <h2 className="text-base text-[#e5e1e4] font-semibold">
                   {currentHarness.id === 'claude-desktop'
-                    ? 'Engine A: Config Mutator'
-                    : 'Engine B: Terminal Spawner'}
+                    ? t('engineAConfigMutator')
+                    : t('engineBTerminalSpawner')}
                 </h2>
               </div>
               <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] animate-ping" />
@@ -484,7 +493,7 @@ export const OrchestratorCanvas: React.FC = () => {
             {currentHarness.id !== 'claude-desktop' && (
               <div className="space-y-1">
                 <label className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider block">
-                  Terminal Emulator Target
+                  {t('terminalEmulatorTarget')}
                 </label>
                 <select
                   value={selectedEmulator}
@@ -505,9 +514,9 @@ export const OrchestratorCanvas: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider">
-                  Scoped Env Injection Payload
+                  {t('scopedEnvPayload')}
                 </span>
-                <span className="font-mono text-[10px] text-[#10b981]">No Global Pollution</span>
+                <span className="font-mono text-[10px] text-[#10b981]">{t('noGlobalPollution')}</span>
               </div>
               <div className="relative rounded-lg bg-[#0e0e10] p-3 border border-[#27272a] font-mono text-[11px] text-[#e5e1e4]">
                 <button
@@ -551,7 +560,7 @@ export const OrchestratorCanvas: React.FC = () => {
             {/* Spawn Command Preview */}
             <div className="rounded-lg bg-[#201f22] p-2.5 border border-[#27272a] space-y-1">
               <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold">
-                Spawn / Mutation Command
+                {t('spawnCommand')}
               </span>
               <div className="flex items-center gap-1.5 font-mono text-xs">
                 <span className="text-[#4cd7f6] font-bold select-none">$</span>
@@ -570,24 +579,31 @@ export const OrchestratorCanvas: React.FC = () => {
                 {launchingState === 'spawning' ? (
                   <>
                     <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Dispatching Scoped Process...</span>
+                    <span>{t('dispatchingProcess')}</span>
                   </>
                 ) : launchingState === 'success' ? (
                   <>
                     <Check className="w-5 h-5" />
-                    <span>{launchFeedback || 'Agent Process Spawned!'}</span>
+                    <span>{launchFeedback || t('agentSpawned')}</span>
                   </>
                 ) : (
                   <>
                     <TerminalIcon className="w-5 h-5" />
                     <span>
                       {currentHarness.id === 'claude-desktop'
-                        ? 'Mutate Claude Desktop Config'
-                        : `Launch ${currentHarness.name} in Native Terminal`}
+                        ? t('mutateClaudeConfig')
+                        : t('launchInTerminal', { name: currentHarness.name })}
                     </span>
                   </>
                 )}
               </button>
+
+              {launchFeedback && launchingState !== 'success' && (
+                <div className="p-2 rounded bg-[#ef4444]/10 border border-[#ef4444]/30 text-xs text-[#ef4444] font-mono flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{launchFeedback}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -596,7 +612,7 @@ export const OrchestratorCanvas: React.FC = () => {
                   className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a] cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
-                  <span>{copiedCmd ? 'Copied!' : 'Copy Launch CMD'}</span>
+                  <span>{copiedCmd ? t('copied') : t('copyLaunchCmd')}</span>
                 </button>
                 <button
                   type="button"
@@ -604,7 +620,7 @@ export const OrchestratorCanvas: React.FC = () => {
                   className="w-full h-9 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#ffb4ab] text-xs transition-colors flex items-center justify-center gap-1.5 border border-[#27272a] cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reset Defaults</span>
+                  <span>{t('resetDefaults')}</span>
                 </button>
               </div>
             </div>
@@ -614,15 +630,7 @@ export const OrchestratorCanvas: React.FC = () => {
           <div className="rounded-xl bg-[#1c1b1d]/70 p-3 border border-[#27272a] flex items-start gap-2.5 shadow-sm">
             <AlertCircle className="w-5 h-5 text-[#4cd7f6] shrink-0 mt-0.5" />
             <p className="text-xs text-[#bbcabf] leading-relaxed">
-              LiteBridge executes native OS IPC or dedicated terminal sub-processes without mutating{' '}
-              <code className="font-mono text-[#e5e1e4] bg-[#201f22] px-1 py-0.5 rounded">
-                ~/.zshrc
-              </code>
-              ,{' '}
-              <code className="font-mono text-[#e5e1e4] bg-[#201f22] px-1 py-0.5 rounded">
-                ~/.bash_profile
-              </code>{' '}
-              or Windows registry environment blocks.
+              {t('quickTip')}
             </p>
           </div>
         </div>
@@ -638,7 +646,7 @@ export const OrchestratorCanvas: React.FC = () => {
               }`}
             />
             <span className="font-bold">
-              Active Processes: {activeProcessesList.length} spawned
+              {t('activeProcessesDrawer', { count: activeProcessesList.length })}
             </span>
           </div>
           <span className="text-[#3c4a42]">•</span>
@@ -650,7 +658,7 @@ export const OrchestratorCanvas: React.FC = () => {
           </span>
           <span className="text-[#3c4a42]">•</span>
           <span>
-            Memory (RSS):{' '}
+            {t('memoryRss')}:{' '}
             <span className="text-[#e5e1e4]">
               {currentProcess
                 ? `${(currentProcess.memory_rss_bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -659,7 +667,7 @@ export const OrchestratorCanvas: React.FC = () => {
           </span>
           <span className="text-[#3c4a42]">•</span>
           <span>
-            Uptime:{' '}
+            {t('uptime')}:{' '}
             <span className="text-[#e5e1e4]">
               {currentProcess ? `${currentProcess.uptime_secs}s` : '0s'}
             </span>

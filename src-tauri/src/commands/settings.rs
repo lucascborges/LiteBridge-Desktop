@@ -43,6 +43,8 @@ impl Default for ContextPolicySettings {
 pub struct AppSettings {
     pub gateway_url: String,
     pub api_key: String,
+    #[serde(default = "default_language")]
+    pub language: String,
     pub model_mapping: ModelRoleMappingSettings,
     pub context_policy: ContextPolicySettings,
     pub selected_emulator: String,
@@ -50,11 +52,16 @@ pub struct AppSettings {
     pub updated_at: String,
 }
 
+fn default_language() -> String {
+    "en".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             gateway_url: "http://localhost:4000".to_string(),
             api_key: String::new(),
+            language: default_language(),
             model_mapping: ModelRoleMappingSettings::default(),
             context_policy: ContextPolicySettings::default(),
             selected_emulator: "Terminal.app (macOS default)".to_string(),
@@ -123,6 +130,7 @@ mod tests {
         let mut initial = AppSettings::default();
         initial.gateway_url = "http://127.0.0.1:8787".to_string();
         initial.api_key = "sk-test-saved-key".to_string();
+        initial.language = "pt".to_string();
         initial.custom_aliases.insert("sonnet-workhorse".to_string(), "gemini-2.5-flash".to_string());
 
         assert!(save_settings_to_path(&initial, &test_path).is_ok());
@@ -130,6 +138,7 @@ mod tests {
         let loaded = load_settings_from_path(&test_path);
         assert_eq!(loaded.gateway_url, "http://127.0.0.1:8787");
         assert_eq!(loaded.api_key, "sk-test-saved-key");
+        assert_eq!(loaded.language, "pt");
         assert_eq!(loaded.custom_aliases.get("sonnet-workhorse").unwrap(), "gemini-2.5-flash");
 
         let _ = fs::remove_dir_all(&tmp_dir);

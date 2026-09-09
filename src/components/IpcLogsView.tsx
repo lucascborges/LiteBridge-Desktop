@@ -1,9 +1,11 @@
 import React from 'react'
 import { Terminal, Trash2 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const IpcLogsView: React.FC = () => {
   const ipcLogs = useAppStore((s) => s.ipcLogs)
+  const { t } = useTranslation()
 
   return (
     <div className="space-y-4 max-w-4xl">
@@ -13,9 +15,9 @@ export const IpcLogsView: React.FC = () => {
             <Terminal className="w-5 h-5 text-[#10b981]" />
           </div>
           <div>
-            <h2 className="text-lg text-[#e5e1e4] font-semibold">Tauri IPC Event Logs & Telemetry</h2>
+            <h2 className="text-lg text-[#e5e1e4] font-semibold">{t('ipcLogsTitle')}</h2>
             <p className="text-xs text-[#bbcabf]">
-              Real-time audit log of commands invoked between React webview and Rust native runtime.
+              {t('ipcLogsDesc')}
             </p>
           </div>
         </div>
@@ -26,14 +28,14 @@ export const IpcLogsView: React.FC = () => {
           className="px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#ffb4ab] text-xs font-mono transition-colors flex items-center gap-1.5 border border-[#27272a] cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          <span>Clear Logs</span>
+          <span>{t('clearLogsBtn')}</span>
         </button>
       </div>
 
       <div className="rounded-xl bg-[#0e0e10] p-4 border border-[#27272a] shadow-inner font-mono text-xs text-[#e5e1e4] min-h-[360px] max-h-[500px] overflow-y-auto space-y-1">
         {ipcLogs.length === 0 ? (
           <div className="text-[#86948a] italic py-8 text-center">
-            No IPC events captured yet. Run an action to see real-time bridge telemetry.
+            {t('noIpcEvents')}
           </div>
         ) : (
           ipcLogs.map((log, index) => (

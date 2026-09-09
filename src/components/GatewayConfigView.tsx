@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Server, Check, Key } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { useLiteLLMHealth, useSaveAppSettings } from '../hooks/useTauriBridge'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const GatewayConfigView: React.FC = () => {
   const gatewayUrl = useAppStore((s) => s.gatewayUrl)
@@ -13,6 +14,9 @@ export const GatewayConfigView: React.FC = () => {
   const customAliases = useAppStore((s) => s.customAliases)
   const modelMapping = useAppStore((s) => s.mapping)
   const contextPolicy = useAppStore((s) => s.contextPolicy)
+  const language = useAppStore((s) => s.language)
+
+  const { t } = useTranslation()
 
   const [inputUrl, setInputUrl] = useState(gatewayUrl)
   const [inputKey, setInputKey] = useState(apiKey)
@@ -30,6 +34,7 @@ export const GatewayConfigView: React.FC = () => {
       api_key: inputKey,
       selected_emulator: selectedEmulator,
       custom_aliases: customAliases,
+      language,
       updated_at: new Date().toISOString(),
       model_mapping: {
         opus: modelMapping.opus,
@@ -57,9 +62,9 @@ export const GatewayConfigView: React.FC = () => {
             <Server className="w-5 h-5 text-[#4cd7f6]" />
           </div>
           <div>
-            <h2 className="text-lg text-[#e5e1e4] font-semibold">LiteLLM Gateway Configuration</h2>
+            <h2 className="text-lg text-[#e5e1e4] font-semibold">{t('gatewayConfigTitle')}</h2>
             <p className="text-xs text-[#bbcabf]">
-              Configure connection parameters, authentication keys, and persist them directly to host OS settings.
+              {t('gatewayConfigDesc')}
             </p>
           </div>
         </div>
@@ -67,7 +72,7 @@ export const GatewayConfigView: React.FC = () => {
         <div className="space-y-3 pt-2">
           <div className="space-y-1">
             <label className="font-mono text-xs text-[#bbcabf] font-medium block">
-              LiteLLM Proxy Host / Base URL
+              {t('proxyHostLabel')}
             </label>
             <input
               type="text"
@@ -77,15 +82,15 @@ export const GatewayConfigView: React.FC = () => {
               className="w-full h-10 px-3 rounded-lg bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
             />
             <p className="text-[11px] text-[#86948a]">
-              The root endpoint of your running LiteLLM instance (standard port 4000 or 8787).
+              {t('proxyHostHelp')}
             </p>
           </div>
 
           <div className="space-y-1">
             <label className="font-mono text-xs text-[#bbcabf] font-medium block flex items-center justify-between">
-              <span>Master Virtual Key / Bearer Token</span>
+              <span>{t('masterKeyLabel')}</span>
               <span className="text-[10px] text-[#ffb95f] flex items-center gap-1">
-                <Key className="w-3 h-3" /> Masked in UI: {maskedKey || 'None'}
+                <Key className="w-3 h-3" /> {t('maskedInUi')}: {maskedKey || 'None'}
               </span>
             </label>
             <input
@@ -96,7 +101,7 @@ export const GatewayConfigView: React.FC = () => {
               className="w-full h-10 px-3 rounded-lg bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
             />
             <p className="text-[11px] text-[#86948a]">
-              Passed as `Authorization: Bearer` to LiteLLM routes. Never written into unencrypted logs (OWASP A02).
+              {t('masterKeyHelp')}
             </p>
           </div>
 
@@ -107,11 +112,11 @@ export const GatewayConfigView: React.FC = () => {
               className="px-4 py-2 rounded-lg bg-[#10b981] hover:bg-[#4edea3] text-[#003824] font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-md"
             >
               {saved ? <Check className="w-4 h-4" /> : null}
-              <span>{saved ? 'Saved to Host Disk' : 'Save & Persist Configuration'}</span>
+              <span>{saved ? t('savedToDisk') : t('saveAndPersist')}</span>
             </button>
             {isFetching && (
               <span className="font-mono text-xs text-[#bbcabf] animate-pulse">
-                Probing LiteLLM gateway...
+                {t('probingGateway')}
               </span>
             )}
           </div>
@@ -121,11 +126,11 @@ export const GatewayConfigView: React.FC = () => {
       {/* Gateway Live Diagnostics Card */}
       <div className="rounded-xl bg-[#0e0e10] p-4 border border-[#27272a] shadow-inner space-y-2">
         <h3 className="font-mono text-xs uppercase text-[#bbcabf] font-bold tracking-wider">
-          Telemetry & Ping
+          {t('telemetryAndPing')}
         </h3>
         <div className="grid grid-cols-3 gap-3 font-mono text-xs">
           <div className="bg-[#1c1b1d] p-3 rounded-lg border border-[#27272a]">
-            <span className="text-[#86948a] block text-[10px]">HEALTHCHECK</span>
+            <span className="text-[#86948a] block text-[10px]">{t('healthcheck')}</span>
             <span
               className={`font-bold text-sm ${
                 health?.status === 'connected' ? 'text-[#10b981]' : 'text-[#ef4444]'
@@ -135,13 +140,13 @@ export const GatewayConfigView: React.FC = () => {
             </span>
           </div>
           <div className="bg-[#1c1b1d] p-3 rounded-lg border border-[#27272a]">
-            <span className="text-[#86948a] block text-[10px]">ROUNDTRIP LATENCY</span>
+            <span className="text-[#86948a] block text-[10px]">{t('roundtripLatency')}</span>
             <span className="text-[#4cd7f6] font-bold text-sm">
               {health?.latency_ms ? `${health.latency_ms} ms` : 'N/A'}
             </span>
           </div>
           <div className="bg-[#1c1b1d] p-3 rounded-lg border border-[#27272a]">
-            <span className="text-[#86948a] block text-[10px]">HOST SETTINGS DISK</span>
+            <span className="text-[#86948a] block text-[10px]">{t('hostSettingsDisk')}</span>
             <span className="text-[#e5e1e4] font-bold text-sm">
               %APPDATA%/LiteBridge
             </span>

@@ -3,11 +3,13 @@ import { FileCode, RotateCcw, Check, Clock, Eye, AlertTriangle } from 'lucide-re
 import { useConfigBackups } from '../hooks/useTauriBridge'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store/useAppStore'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const BackupsView: React.FC = () => {
   const claudeDesktopConfigPath = useAppStore((s) => s.claudeDesktopConfigPath)
   const addIpcLog = useAppStore((s) => s.addIpcLog)
   const { data: backups = [], refetch, isFetching } = useConfigBackups()
+  const { t } = useTranslation()
 
   const [restoring, setRestoring] = useState<string | null>(null)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
@@ -45,9 +47,9 @@ export const BackupsView: React.FC = () => {
             <FileCode className="w-5 h-5 text-[#4cd7f6]" />
           </div>
           <div>
-            <h2 className="text-lg text-[#e5e1e4] font-semibold">Config Backups & Atomic Rollbacks</h2>
+            <h2 className="text-lg text-[#e5e1e4] font-semibold">{t('backupsTitle')}</h2>
             <p className="text-xs text-[#bbcabf]">
-              Target Host Config:{' '}
+              {t('targetHostConfig')}{' '}
               <span className="font-mono text-[#10b981]">
                 {claudeDesktopConfigPath || 'claude_desktop_config.json'}
               </span>
@@ -56,7 +58,7 @@ export const BackupsView: React.FC = () => {
         </div>
 
         <p className="text-xs text-[#bbcabf] leading-relaxed">
-          LiteBridge creates an atomic snapshot before every configuration rewrite. MCP server entries, credentials, and custom plugins are guaranteed immutable.
+          {t('backupsDesc')}
         </p>
 
         {statusMsg && (
@@ -76,23 +78,23 @@ export const BackupsView: React.FC = () => {
 
       <div className="rounded-xl bg-[#0e0e10] border border-[#27272a] overflow-hidden shadow-inner">
         <div className="px-4 py-2.5 bg-[#1c1b1d] border-b border-[#27272a] flex items-center justify-between text-xs font-mono text-[#bbcabf]">
-          <span>AVAILABLE BACKUP SNAPSHOTS ({backups.length})</span>
+          <span>{t('availableSnapshots', { count: backups.length })}</span>
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
             className="text-[#10b981] hover:underline cursor-pointer disabled:opacity-50"
           >
-            {isFetching ? 'Scanning...' : 'Refresh List'}
+            {isFetching ? t('scanningList') : t('refreshList')}
           </button>
         </div>
 
         {backups.length === 0 ? (
           <div className="p-10 text-center space-y-2 font-mono text-xs text-[#86948a]">
             <FileCode className="w-8 h-8 mx-auto text-[#3c4a42]" />
-            <p className="text-[#e5e1e4] font-medium">No Config Backups Created Yet</p>
+            <p className="text-[#e5e1e4] font-medium">{t('noBackupsTitle')}</p>
             <p className="text-[11px] max-w-sm mx-auto">
-              Whenever you mutate your Claude Desktop configuration through LiteBridge, an atomic timestamped backup (.bak.&lt;timestamp&gt;) will appear here automatically.
+              {t('noBackupsDesc')}
             </p>
           </div>
         ) : (
@@ -127,7 +129,7 @@ export const BackupsView: React.FC = () => {
                     className="px-2.5 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#e5e1e4] text-xs font-mono transition-colors flex items-center gap-1 border border-[#27272a] cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>{previewBackup?.path === b.path ? 'Close' : 'Details'}</span>
+                    <span>{previewBackup?.path === b.path ? t('closeBtn') : t('detailsBtn')}</span>
                   </button>
 
                   <button
@@ -137,7 +139,7 @@ export const BackupsView: React.FC = () => {
                     className="px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] hover:text-[#10b981] text-xs font-mono transition-colors flex items-center gap-1.5 border border-[#27272a] cursor-pointer disabled:opacity-50"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{restoring === b.path ? 'Restoring...' : 'Restore'}</span>
+                    <span>{restoring === b.path ? t('restoringBtn') : t('restoreBtn')}</span>
                   </button>
                 </div>
               </div>
@@ -149,19 +151,19 @@ export const BackupsView: React.FC = () => {
       {previewBackup && (
         <div className="rounded-xl bg-[#0e0e10] p-4 border border-[#27272a] shadow-inner space-y-2 font-mono text-xs">
           <div className="flex items-center justify-between text-[#e5e1e4]">
-            <span className="text-[#4cd7f6] font-bold">Snapshot Path: {previewBackup.name}</span>
+            <span className="text-[#4cd7f6] font-bold">{t('snapshotPath')} {previewBackup.name}</span>
             <button
               type="button"
               onClick={() => setPreviewBackup(null)}
               className="text-[#86948a] hover:text-[#e5e1e4]"
             >
-              &times; Close
+              &times; {t('closeBtn')}
             </button>
           </div>
           <div className="p-3 rounded bg-[#1c1b1d] text-[#bbcabf] overflow-x-auto text-[11px] leading-relaxed">
             <code>Location: {previewBackup.path}</code>
             <p className="text-[10px] text-[#86948a] pt-1">
-              Validated schema snapshot with intact mcpServers definitions. Ready for 1-click restore.
+              {t('validatedSnapshotNotice')}
             </p>
           </div>
         </div>

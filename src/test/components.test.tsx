@@ -59,4 +59,22 @@ describe('Frontend Suite - Mock-Free Dedicated Views', () => {
     expect(screen.getByText(/Config Backups & Atomic Rollbacks/i)).toBeTruthy()
     expect(screen.getByText(/AVAILABLE BACKUP SNAPSHOTS/i)).toBeTruthy()
   })
+
+  it('switches languages dynamically across views (en, pt, es)', async () => {
+    const { useAppStore } = await import('../store/useAppStore')
+    
+    // Switch to Portuguese
+    useAppStore.getState().setLanguage('pt')
+    const { unmount } = renderWithClient(<Header onOpenDiagnostics={() => {}} />)
+    expect(screen.getByText(/Diagnósticos/i)).toBeTruthy()
+    unmount()
+
+    // Switch to Spanish
+    useAppStore.getState().setLanguage('es')
+    renderWithClient(<Header onOpenDiagnostics={() => {}} />)
+    expect(screen.getByText(/Diagnósticos/i)).toBeTruthy()
+
+    // Switch back to English
+    useAppStore.getState().setLanguage('en')
+  })
 })

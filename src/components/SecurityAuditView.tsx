@@ -1,7 +1,10 @@
 import React from 'react'
 import { Shield, CheckCircle2, Lock, Terminal, FileCode, Cpu } from 'lucide-react'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const SecurityAuditView: React.FC = () => {
+  const { t } = useTranslation()
+
   const checklist = [
     {
       owasp: 'A01:2021 - Broken Access Control',
@@ -56,10 +59,10 @@ export const SecurityAuditView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-lg text-[#e5e1e4] font-semibold">
-              OWASP Top 10 Security Architecture & Audit
+              {t('securityAuditTitle')}
             </h2>
             <p className="text-xs text-[#bbcabf]">
-              Full cryptographic, memory, process isolation, and injection defense audit.
+              {t('securityAuditDesc')}
             </p>
           </div>
         </div>

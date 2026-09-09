@@ -1,3 +1,5 @@
+export type Language = 'en' | 'pt' | 'es'
+
 export interface HarnessInfo {
   id: string
   name: string
@@ -90,6 +92,7 @@ export interface ContextPolicy {
 export interface AppSettingsPayload {
   gateway_url: string
   api_key: string
+  language?: Language
   model_mapping: {
     opus: string
     sonnet: string

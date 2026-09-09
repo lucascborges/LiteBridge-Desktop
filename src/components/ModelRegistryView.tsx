@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { useProbeModelLatency, useSaveAppSettings } from '../hooks/useTauriBridge'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const ModelRegistryView: React.FC = () => {
   const models = useAppStore((s) => s.models)
@@ -21,6 +22,9 @@ export const ModelRegistryView: React.FC = () => {
   const modelMapping = useAppStore((s) => s.mapping)
   const contextPolicy = useAppStore((s) => s.contextPolicy)
   const selectedEmulator = useAppStore((s) => s.selectedEmulator)
+  const language = useAppStore((s) => s.language)
+
+  const { t } = useTranslation()
 
   const probeMutation = useProbeModelLatency()
   const saveSettingsMutation = useSaveAppSettings()
@@ -58,6 +62,7 @@ export const ModelRegistryView: React.FC = () => {
       api_key: apiKey,
       selected_emulator: selectedEmulator,
       custom_aliases: updatedAliases,
+      language,
       updated_at: new Date().toISOString(),
       model_mapping: {
         opus: modelMapping.opus,
@@ -87,6 +92,7 @@ export const ModelRegistryView: React.FC = () => {
       api_key: apiKey,
       selected_emulator: selectedEmulator,
       custom_aliases: updatedAliases,
+      language,
       updated_at: new Date().toISOString(),
       model_mapping: {
         opus: modelMapping.opus,
@@ -115,13 +121,13 @@ export const ModelRegistryView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg text-[#e5e1e4] font-semibold">Model Registry & Aliases Studio</h2>
+              <h2 className="text-lg text-[#e5e1e4] font-semibold">{t('modelRegistryTitle')}</h2>
               <span className="px-2 py-0.5 rounded-full bg-[#ffb95f]/10 text-[#ffb95f] font-mono text-[10px] font-bold">
-                {models.length} Discovered
+                {models.length} {t('discovered')}
               </span>
             </div>
             <p className="text-xs text-[#bbcabf]">
-              Map local proxy aliases, probe upstream endpoint latencies, and inspect LiteLLM model catalog.
+              {t('modelRegistryDesc')}
             </p>
           </div>
         </div>
@@ -129,7 +135,7 @@ export const ModelRegistryView: React.FC = () => {
         {savedNotice && (
           <div className="px-3 py-1 rounded bg-[#10b981]/10 border border-[#10b981]/30 text-xs text-[#10b981] font-mono flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5" />
-            <span>Alias Persisted to Disk</span>
+            <span>{t('aliasPersistedNotice')}</span>
           </div>
         )}
       </div>
@@ -138,13 +144,13 @@ export const ModelRegistryView: React.FC = () => {
       <div className="rounded-xl bg-[#0e0e10] p-4 border border-[#27272a] shadow-inner space-y-3">
         <h3 className="text-xs font-mono uppercase text-[#bbcabf] font-bold tracking-wider flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-[#10b981]" />
-          <span>Create Model Route Alias</span>
+          <span>{t('createRouteAlias')}</span>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
           <div className="sm:col-span-4">
             <input
               type="text"
-              placeholder="Alias Name (e.g. sonnet-workhorse)"
+              placeholder={t('aliasNamePlaceholder')}
               value={aliasName}
               onChange={(e) => setAliasName(e.target.value)}
               className="w-full h-9 px-3 rounded-lg bg-[#1c1b1d] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
@@ -157,7 +163,7 @@ export const ModelRegistryView: React.FC = () => {
               className="w-full h-9 px-3 rounded-lg bg-[#1c1b1d] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
             >
               {models.length === 0 ? (
-                <option value="">No LiteLLM models discovered yet</option>
+                <option value="">{t('noModelsDiscovered')}</option>
               ) : (
                 models.map((m) => (
                   <option key={m} value={m}>
@@ -175,7 +181,7 @@ export const ModelRegistryView: React.FC = () => {
               className="w-full h-9 rounded-lg bg-[#10b981] hover:bg-[#4edea3] text-[#003824] font-bold text-xs font-mono transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Save Alias</span>
+              <span>{t('saveAliasBtn')}</span>
             </button>
           </div>
         </div>
@@ -183,7 +189,7 @@ export const ModelRegistryView: React.FC = () => {
         {/* Existing Aliases Chips */}
         {Object.keys(customAliases).length > 0 && (
           <div className="pt-2 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-mono text-[#86948a] uppercase">Active Aliases:</span>
+            <span className="text-[10px] font-mono text-[#86948a] uppercase">{t('activeAliases')}</span>
             {Object.entries(customAliases).map(([alias, target]) => (
               <div
                 key={alias}
@@ -213,22 +219,22 @@ export const ModelRegistryView: React.FC = () => {
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#86948a]" />
             <input
               type="text"
-              placeholder="Filter upstream model IDs..."
+              placeholder={t('filterUpstreamPlaceholder')}
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
               className="w-full h-8 pl-8 pr-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
             />
           </div>
           <span className="font-mono text-xs text-[#86948a]">
-            Showing {filteredModels.length} of {models.length} upstream models
+            {t('showingModelsCount', { filtered: filteredModels.length, total: models.length })}
           </span>
         </div>
 
         {models.length === 0 ? (
           <div className="p-8 text-center text-xs font-mono text-[#86948a] space-y-1">
-            <p>LiteLLM Proxy is currently unreachable or has no models configured.</p>
+            <p>{t('noModelsDiscovered')}</p>
             <p className="text-[11px] text-[#bbcabf]">
-              Ensure LiteLLM is running on <code className="text-[#10b981]">{gatewayUrl}</code> and click "Refresh" in the header.
+              {t('ensureLiteLLMRunning', { url: gatewayUrl })}
             </p>
           </div>
         ) : (
@@ -245,7 +251,7 @@ export const ModelRegistryView: React.FC = () => {
                       <span className="text-[#e5e1e4] font-medium truncate">{modelId}</span>
                       {Object.values(customAliases).includes(modelId) && (
                         <span className="px-1.5 py-0.2 rounded bg-[#4cd7f6]/10 text-[#4cd7f6] text-[9px] uppercase font-bold">
-                          Aliased
+                          {t('aliasedBadge')}
                         </span>
                       )}
                     </div>
@@ -254,7 +260,7 @@ export const ModelRegistryView: React.FC = () => {
 
                   <div className="flex items-center gap-3 shrink-0">
                     {probe?.loading ? (
-                      <span className="text-[#ffb95f] text-[11px] animate-pulse">Probing 1 token...</span>
+                      <span className="text-[#ffb95f] text-[11px] animate-pulse">{t('probingOneToken')}</span>
                     ) : probe?.latency !== undefined ? (
                       <span
                         className={`text-[11px] font-bold ${
@@ -273,7 +279,7 @@ export const ModelRegistryView: React.FC = () => {
                       title="Probe model inference response time"
                     >
                       <Activity className="w-3 h-3 text-[#10b981]" />
-                      <span>Probe Latency</span>
+                      <span>{t('probeLatencyBtn')}</span>
                     </button>
                   </div>
                 </div>

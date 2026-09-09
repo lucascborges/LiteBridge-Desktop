@@ -6,9 +6,13 @@ import type {
   BackupInfo,
   ProcessMeta,
   AppSettingsPayload,
+  Language,
 } from '../types'
 
 interface AppState {
+  language: Language
+  setLanguage: (lang: Language) => void
+
   gatewayUrl: string
   apiKey: string
   maskedKey: string
@@ -66,6 +70,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  language: 'en',
+  setLanguage: (lang) => set({ language: lang }),
+
   gatewayUrl: 'http://localhost:4000',
   apiKey: '',
   maskedKey: '',
@@ -226,6 +233,7 @@ export const useAppStore = create<AppState>((set) => ({
         : ''
 
     set({
+      language: settings.language || 'en',
       gatewayUrl: settings.gateway_url,
       apiKey: settings.api_key,
       maskedKey: masked,

@@ -10,11 +10,13 @@ import {
   Layers,
 } from 'lucide-react'
 import { useTrackedProcesses, useKillProcess } from '../hooks/useTauriBridge'
+import { useTranslation } from '../i18n/useTranslation'
 
 export const ProcessMonitorView: React.FC = () => {
   const { data: processes = [], refetch, isFetching } = useTrackedProcesses()
   const killMutation = useKillProcess()
   const [killingPid, setKillingPid] = useState<number | null>(null)
+  const { t } = useTranslation()
 
   const handleKill = async (pid: number) => {
     setKillingPid(pid)
@@ -52,13 +54,13 @@ export const ProcessMonitorView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg text-[#e5e1e4] font-semibold">Subprocess Monitor</h2>
+              <h2 className="text-lg text-[#e5e1e4] font-semibold">{t('processMonitorTitle')}</h2>
               <span className="px-2 py-0.5 rounded-full bg-[#10b981]/10 text-[#10b981] font-mono text-[10px] font-bold">
-                {activeCount} Active
+                {t('activeProcessesCount', { count: activeCount })}
               </span>
             </div>
             <p className="text-xs text-[#bbcabf]">
-              Real-time lifecycle inspection and RSS telemetry for terminal sessions launched by LiteBridge.
+              {t('processMonitorDesc')}
             </p>
           </div>
         </div>
@@ -70,7 +72,7 @@ export const ProcessMonitorView: React.FC = () => {
           className="px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs font-mono transition-colors flex items-center gap-1.5 border border-[#27272a] cursor-pointer disabled:opacity-50 self-start sm:self-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 text-[#10b981] ${isFetching ? 'animate-spin' : ''}`} />
-          <span>Refresh Processes</span>
+          <span>{t('refreshProcessesBtn')}</span>
         </button>
       </div>
 
@@ -79,9 +81,9 @@ export const ProcessMonitorView: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-[#1c1b1d] border border-[#27272a] flex items-center justify-center mx-auto text-[#86948a]">
             <Terminal className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-semibold text-[#e5e1e4]">No Tracked Processes Active</h3>
+          <h3 className="text-sm font-semibold text-[#e5e1e4]">{t('noTrackedProcessesTitle')}</h3>
           <p className="text-xs text-[#86948a] max-w-md mx-auto">
-            Spawn an agent from the Orchestrator Canvas to view real-time memory (RSS), CPU usage, and lifecycle states.
+            {t('noTrackedProcessesDesc')}
           </p>
         </div>
       ) : (
@@ -90,13 +92,13 @@ export const ProcessMonitorView: React.FC = () => {
             <table className="w-full text-left font-mono text-xs text-[#e5e1e4]">
               <thead className="bg-[#1c1b1d] text-[#86948a] uppercase text-[10px] border-b border-[#27272a]">
                 <tr>
-                  <th className="p-3">PID / Status</th>
-                  <th className="p-3">CLI Binary</th>
-                  <th className="p-3">Emulator</th>
-                  <th className="p-3">Memory (RSS)</th>
-                  <th className="p-3">CPU %</th>
-                  <th className="p-3">Uptime</th>
-                  <th className="p-3 text-right">Action</th>
+                  <th className="p-3">{t('colPidStatus')}</th>
+                  <th className="p-3">{t('colCliBinary')}</th>
+                  <th className="p-3">{t('colEmulator')}</th>
+                  <th className="p-3">{t('colMemoryRss')}</th>
+                  <th className="p-3">{t('colCpu')}</th>
+                  <th className="p-3">{t('colUptime')}</th>
+                  <th className="p-3 text-right">{t('colAction')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#27272a]">
@@ -117,7 +119,7 @@ export const ProcessMonitorView: React.FC = () => {
                               : 'bg-[#201f22] text-[#86948a]'
                           }`}
                         >
-                          {proc.active ? 'RUNNING' : 'EXITED'}
+                          {proc.active ? t('runningStatus') : t('exitedStatus')}
                         </span>
                       </div>
                     </td>
@@ -155,10 +157,10 @@ export const ProcessMonitorView: React.FC = () => {
                           className="px-2.5 py-1 rounded bg-[#ef4444]/10 hover:bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30 transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
                         >
                           <Square className="w-3 h-3 fill-current" />
-                          <span>{killingPid === proc.pid ? 'Killing...' : 'Kill'}</span>
+                          <span>{killingPid === proc.pid ? t('killingBtn') : t('killBtn')}</span>
                         </button>
                       ) : (
-                        <span className="text-[#86948a] text-[11px] italic">Terminated</span>
+                        <span className="text-[#86948a] text-[11px] italic">{t('terminatedStatus')}</span>
                       )}
                     </td>
                   </tr>

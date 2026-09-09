@@ -1,6 +1,7 @@
 import React from 'react'
 import { Terminal, Database, Shield, FileCode, Monitor, Server } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
+import { useTranslation } from '../i18n/useTranslation'
 
 interface SidebarProps {
   currentTab: string
@@ -8,9 +9,13 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) => {
+  const { t } = useTranslation()
   const harnesses = useAppStore((s) => s.harnesses)
   const selectedHarnessId = useAppStore((s) => s.selectedHarnessId)
   const setSelectedHarnessId = useAppStore((s) => s.setSelectedHarnessId)
+  const gatewayUrl = useAppStore((s) => s.gatewayUrl)
+
+  const displayHost = gatewayUrl.replace(/^https?:\/\//, '')
 
   return (
     <aside className="fixed left-0 top-[38px] bottom-0 w-64 bg-[#0e0e10] border-r border-[#27272a] z-40 flex flex-col justify-between select-none">
@@ -21,13 +26,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#10b981]" />
               <span className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider">
-                Gateway Host
+                {t('gatewayHost')}
               </span>
             </div>
             <span className="font-mono text-[11px] text-[#10b981] font-medium">24ms</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs text-[#e5e1e4] font-semibold">127.0.0.1:4000</span>
+            <span className="font-mono text-xs text-[#e5e1e4] font-semibold">{displayHost}</span>
             <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
           </div>
         </div>
@@ -35,11 +40,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
         {/* Section: Agents & Harnesses */}
         <div className="space-y-1">
           <div className="px-2 py-1 font-mono text-[10px] text-[#86948a] uppercase tracking-wider">
-            Agents & Harnesses
+            {t('agentsAndHarnesses')}
           </div>
 
           {harnesses.map((h) => {
             const isSelected = selectedHarnessId === h.id && currentTab === 'orchestrator'
+            const statusLabel =
+              h.status === 'DETECTED'
+                ? t('detected')
+                : h.status === 'CONFIG-ONLY'
+                ? t('configOnly')
+                : t('inactive')
+
             const statusColor =
               h.status === 'DETECTED'
                 ? 'text-[#10b981] bg-[#10b981]/10'
@@ -55,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
                   setSelectedHarnessId(h.id)
                   setCurrentTab('orchestrator')
                 }}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold shadow-sm'
                     : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
@@ -74,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
                   <span>{h.name}</span>
                 </div>
                 <span className={`px-1.5 py-0.5 rounded font-mono text-[9px] ${statusColor}`}>
-                  {h.status}
+                  {statusLabel}
                 </span>
               </button>
             )
@@ -84,92 +96,92 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
         {/* Section: System & Proxy */}
         <div className="space-y-1">
           <div className="px-2 py-1 font-mono text-[10px] text-[#86948a] uppercase tracking-wider">
-            System & Proxy
+            {t('systemAndProxy')}
           </div>
 
           <button
             type="button"
             onClick={() => setCurrentTab('gateway-config')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'gateway-config'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <Server className="w-3.5 h-3.5 text-[#4cd7f6]" />
-            <span>LiteLLM Gateway Config</span>
+            <span>{t('gatewayConfigMenu')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCurrentTab('model-registry')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'model-registry'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <Database className="w-3.5 h-3.5 text-[#ffb95f]" />
-            <span>Model Registry & Aliases</span>
+            <span>{t('modelRegistryMenu')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCurrentTab('process-monitor')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'process-monitor'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <Monitor className="w-3.5 h-3.5 text-[#10b981]" />
-            <span>Process Monitor</span>
+            <span>{t('processMonitorMenu')}</span>
           </button>
         </div>
 
         {/* Section: Tools & Audit */}
         <div className="space-y-1">
           <div className="px-2 py-1 font-mono text-[10px] text-[#86948a] uppercase tracking-wider">
-            Tools & Audit
+            {t('toolsAndAudit')}
           </div>
 
           <button
             type="button"
             onClick={() => setCurrentTab('backups')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'backups'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <FileCode className="w-3.5 h-3.5 text-[#4cd7f6]" />
-            <span>Config Backups & Rollbacks</span>
+            <span>{t('configBackupsMenu')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCurrentTab('security-owasp')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'security-owasp'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <Shield className="w-3.5 h-3.5 text-[#10b981]" />
-            <span>Security & OWASP Audit</span>
+            <span>{t('securityAuditMenu')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCurrentTab('ipc-logs')}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
               currentTab === 'ipc-logs'
                 ? 'bg-[#2a2a2c] text-[#e5e1e4] font-semibold'
                 : 'text-[#bbcabf] hover:bg-[#1c1b1d] hover:text-[#e5e1e4]'
             }`}
           >
             <Terminal className="w-3.5 h-3.5 text-[#bbcabf]" />
-            <span>Tauri IPC Logs</span>
+            <span>{t('ipcLogsMenu')}</span>
           </button>
         </div>
       </div>
@@ -179,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab }) =
         <div className="p-2 rounded-lg bg-[#1c1b1d] flex items-center justify-between text-[#bbcabf] font-mono text-[11px]">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-            <span>Tauri IPC Core</span>
+            <span>{t('tauriIpcCore')}</span>
           </div>
           <span className="text-[#86948a]">:v2</span>
         </div>
