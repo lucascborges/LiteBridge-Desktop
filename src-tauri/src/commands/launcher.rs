@@ -59,7 +59,13 @@ pub fn build_scoped_env(
 
     if let Some(m) = model {
         if !m.trim().is_empty() {
-            env.insert("CLAUDE_CODE_MODEL".to_string(), sanitize_env_value(m));
+            let s = sanitize_env_value(m);
+            env.insert("CLAUDE_CODE_MODEL".to_string(), s.clone());
+            env.insert("ANTHROPIC_MODEL".to_string(), s.clone());
+            env.insert("CLAUDE_MODEL".to_string(), s.clone());
+            env.insert("ANTHROPIC_DEFAULT_SONNET_MODEL".to_string(), s.clone());
+            env.insert("OPENAI_MODEL".to_string(), s.clone());
+            env.insert("MODEL".to_string(), s);
         }
     }
 

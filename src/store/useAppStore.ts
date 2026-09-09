@@ -161,8 +161,8 @@ export const useAppStore = create<AppState>((set) => ({
   setModels: (models) => set({ models }),
 
   mapping: {
-    opus: 'bedrock/anthropic.claude-3-opus-20240229-v1:0',
-    sonnet: 'gemini-2.5-flash-thinking',
+    opus: 'claude-3-opus-20240229',
+    sonnet: 'claude-3-7-sonnet-20250219',
     haiku: 'claude-3-5-haiku-20241022',
     fallbackEnabled: true,
   },

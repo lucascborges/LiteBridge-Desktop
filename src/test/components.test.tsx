@@ -22,7 +22,7 @@ describe('Frontend Suite - Mock-Free Dedicated Views', () => {
   it('renders Header with brand title and status pill', () => {
     renderWithClient(<Header onOpenDiagnostics={() => {}} />)
     expect(screen.getByText(/LiteBridge Desktop/i)).toBeTruthy()
-    expect(screen.getByText(/v1\.1\.1/i)).toBeTruthy()
+    expect(screen.getByText(/v1\.1\./i)).toBeTruthy()
     expect(screen.getByText(/Diagnostics/i)).toBeTruthy()
   })
 

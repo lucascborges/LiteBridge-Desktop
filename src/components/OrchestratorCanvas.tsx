@@ -65,7 +65,11 @@ export const OrchestratorCanvas: React.FC = () => {
     setTimeout(() => setCopiedBinary(false), 1500)
   }
 
-  const envPayloadText = `export ANTHROPIC_BASE_URL="${gatewayUrl}"\nexport ANTHROPIC_API_KEY="${apiKey}"\nexport OPENAI_API_BASE="${gatewayUrl}/v1"\nexport CLAUDE_CODE_MODEL="${mapping.sonnet}"`
+  const activeSonnetModel = mapping.sonnet?.trim() || 'claude-3-7-sonnet-20250219'
+  const activeOpusModel = mapping.opus?.trim() || 'claude-3-opus-20240229'
+  const activeHaikuModel = mapping.haiku?.trim() || 'claude-3-5-haiku-20241022'
+
+  const envPayloadText = `export ANTHROPIC_BASE_URL="${gatewayUrl}"\nexport ANTHROPIC_API_KEY="${apiKey}"\nexport ANTHROPIC_MODEL="${activeSonnetModel}"\nexport CLAUDE_CODE_MODEL="${activeSonnetModel}"\nexport OPENAI_API_BASE="${gatewayUrl}/v1"\nexport OPENAI_MODEL="${activeSonnetModel}"`
 
   const handleCopyEnv = () => {
     navigator.clipboard.writeText(envPayloadText).catch(() => {})
@@ -73,7 +77,7 @@ export const OrchestratorCanvas: React.FC = () => {
     setTimeout(() => setCopiedEnv(false), 1500)
   }
 
-  const spawnCmdText = `env ANTHROPIC_BASE_URL="${gatewayUrl}" ${binaryPath}`
+  const spawnCmdText = `env ANTHROPIC_BASE_URL="${gatewayUrl}" ANTHROPIC_MODEL="${activeSonnetModel}" ${binaryPath}`
 
   const handleCopyCmd = () => {
     navigator.clipboard.writeText(spawnCmdText).catch(() => {})
@@ -96,7 +100,12 @@ export const OrchestratorCanvas: React.FC = () => {
         const res = await mutateConfigMutation.mutateAsync({
           gatewayUrl,
           apiKey,
-          modelMapping: mapping,
+          modelMapping: {
+            opus: activeOpusModel,
+            sonnet: activeSonnetModel,
+            haiku: activeHaikuModel,
+            fallbackEnabled: mapping.fallbackEnabled,
+          },
         })
         setLaunchFeedback(res ? 'Claude Desktop configuration updated & backup saved!' : 'Config injected!')
       } else {
@@ -109,7 +118,14 @@ export const OrchestratorCanvas: React.FC = () => {
             ANTHROPIC_API_KEY: apiKey,
             OPENAI_API_BASE: `${gatewayUrl}/v1`,
             OPENAI_API_KEY: apiKey,
-            CLAUDE_CODE_MODEL: mapping.sonnet,
+            ANTHROPIC_MODEL: activeSonnetModel,
+            CLAUDE_MODEL: activeSonnetModel,
+            CLAUDE_CODE_MODEL: activeSonnetModel,
+            ANTHROPIC_DEFAULT_SONNET_MODEL: activeSonnetModel,
+            ANTHROPIC_DEFAULT_OPUS_MODEL: activeOpusModel,
+            ANTHROPIC_DEFAULT_HAIKU_MODEL: activeHaikuModel,
+            OPENAI_MODEL: activeSonnetModel,
+            MODEL: activeSonnetModel,
           },
         })
         setLaunchFeedback(res.message || `Process spawned (PID ${res.pid})`)
@@ -208,26 +224,54 @@ export const OrchestratorCanvas: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleLaunchAgent}
+              disabled={launchingState === 'spawning'}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#10b981] hover:bg-[#4edea3] text-[#003824] font-bold text-xs shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+            >
+              {launchingState === 'spawning' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>{t('dispatchingProcess')}</span>
+                </>
+              ) : launchingState === 'success' ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>{launchFeedback || t('agentSpawned')}</span>
+                </>
+              ) : (
+                <>
+                  <TerminalIcon className="w-4 h-4" />
+                  <span>
+                    {currentHarness.id === 'claude-desktop'
+                      ? t('mutateClaudeConfig')
+                      : t('launchInTerminal', { name: currentHarness.name })}
+                  </span>
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               disabled={isScanning}
               onClick={() => refetchSystemScan()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] disabled:opacity-50 text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] disabled:opacity-50 text-[#e5e1e4] text-xs transition-all border border-[#27272a] cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-[#10b981] ${isScanning ? 'animate-spin' : ''}`} />
               <span>{isScanning ? '...' : t('detectAgain')}</span>
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
             >
               <FolderOpen className="w-3.5 h-3.5" />
               <span>{t('openFolder')}</span>
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#201f22] hover:bg-[#2a2a2c] text-[#bbcabf] hover:text-[#e5e1e4] text-xs transition-all border border-[#27272a]"
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>{t('docs')}</span>
@@ -290,21 +334,21 @@ export const OrchestratorCanvas: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <select
-                value={mapping.opus}
-                onChange={(e) => setMappingRole('opus', e.target.value)}
-                className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
-              >
-                {models.length === 0 ? (
-                  <option value={mapping.opus}>{mapping.opus}</option>
-                ) : (
-                  models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  list="opus-model-options"
+                  value={mapping.opus}
+                  onChange={(e) => setMappingRole('opus', e.target.value)}
+                  placeholder="e.g. claude-3-opus-20240229, bedrock/anthropic.claude-3-opus..."
+                  className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
+                />
+                <datalist id="opus-model-options">
+                  {models.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Tier 2: Sonnet */}
@@ -320,21 +364,21 @@ export const OrchestratorCanvas: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <select
-                value={mapping.sonnet}
-                onChange={(e) => setMappingRole('sonnet', e.target.value)}
-                className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#10b981]/50 focus:outline-none focus:border-[#10b981] cursor-pointer"
-              >
-                {models.length === 0 ? (
-                  <option value={mapping.sonnet}>{mapping.sonnet}</option>
-                ) : (
-                  models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  list="sonnet-model-options"
+                  value={mapping.sonnet}
+                  onChange={(e) => setMappingRole('sonnet', e.target.value)}
+                  placeholder="e.g. claude-3-7-sonnet-20250219, gemini-2.0-flash, gpt-4o, etc."
+                  className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#10b981]/50 focus:outline-none focus:border-[#10b981]"
+                />
+                <datalist id="sonnet-model-options">
+                  {models.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Tier 3: Haiku */}
@@ -350,21 +394,21 @@ export const OrchestratorCanvas: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <select
-                value={mapping.haiku}
-                onChange={(e) => setMappingRole('haiku', e.target.value)}
-                className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
-              >
-                {models.length === 0 ? (
-                  <option value={mapping.haiku}>{mapping.haiku}</option>
-                ) : (
-                  models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  list="haiku-model-options"
+                  value={mapping.haiku}
+                  onChange={(e) => setMappingRole('haiku', e.target.value)}
+                  placeholder="e.g. claude-3-5-haiku-20241022"
+                  className="w-full h-9 px-3 rounded bg-[#0e0e10] text-[#e5e1e4] font-mono text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981]"
+                />
+                <datalist id="haiku-model-options">
+                  {models.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Router Fallback Toggle */}
@@ -498,85 +542,7 @@ export const OrchestratorCanvas: React.FC = () => {
               <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] animate-ping" />
             </div>
 
-            {currentHarness.id !== 'claude-desktop' && (
-              <div className="space-y-1">
-                <label className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider block">
-                  {t('terminalEmulatorTarget')}
-                </label>
-                <select
-                  value={selectedEmulator}
-                  onChange={(e) => setSelectedEmulator(e.target.value)}
-                  className="w-full h-10 px-3 rounded-lg bg-[#201f22] text-[#e5e1e4] text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
-                >
-                  <option>Terminal.app (macOS default)</option>
-                  <option>iTerm2 (com.googlecode.iterm2)</option>
-                  <option>Windows Terminal (wt.exe)</option>
-                  <option>PowerShell (-NoExit)</option>
-                  <option>gnome-terminal (Linux)</option>
-                  <option>Alacritty / Kitty</option>
-                </select>
-              </div>
-            )}
-
-            {/* Scoped Env Payload Display */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider">
-                  {t('scopedEnvPayload')}
-                </span>
-                <span className="font-mono text-[10px] text-[#10b981]">{t('noGlobalPollution')}</span>
-              </div>
-              <div className="relative rounded-lg bg-[#0e0e10] p-3 border border-[#27272a] font-mono text-[11px] text-[#e5e1e4]">
-                <button
-                  type="button"
-                  onClick={handleCopyEnv}
-                  className="absolute top-2 right-2 p-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] text-[#86948a] hover:text-[#e5e1e4] transition-colors cursor-pointer"
-                  title="Copy Environment Block"
-                >
-                  {copiedEnv ? (
-                    <Check className="w-3.5 h-3.5 text-[#10b981]" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-                <div className="space-y-1 text-[#bbcabf]">
-                  <div>
-                    <span className="text-[#4cd7f6]">export</span> ANTHROPIC_BASE_URL=
-                    <span className="text-[#10b981]">"{gatewayUrl}"</span>
-                  </div>
-                  <div>
-                    <span className="text-[#4cd7f6]">export</span> ANTHROPIC_API_KEY=
-                    <span className="text-[#ffb95f]">
-                      "{maskedKey || 'sk-litellm-...'}"
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#4cd7f6]">export</span> OPENAI_API_BASE=
-                    <span className="text-[#10b981]">"{gatewayUrl}/v1"</span>
-                  </div>
-                  <div>
-                    <span className="text-[#4cd7f6]">export</span> CLAUDE_CODE_MODEL=
-                    <span className="text-[#e5e1e4]">"{mapping.sonnet}"</span>
-                  </div>
-                  <div className="text-[#86948a] pt-1 italic text-[10px]">
-                    # Subprocess isolated • Zero global shell pollution
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Spawn Command Preview */}
-            <div className="rounded-lg bg-[#201f22] p-2.5 border border-[#27272a] space-y-1">
-              <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold">
-                {t('spawnCommand')}
-              </span>
-              <div className="flex items-center gap-1.5 font-mono text-xs">
-                <span className="text-[#4cd7f6] font-bold select-none">$</span>
-                <span className="text-[#e5e1e4] truncate">{spawnCmdText}</span>
-              </div>
-            </div>
-
-            {/* Main Action Buttons */}
+            {/* Main Action Buttons - Positioned At The Top */}
             <div className="space-y-2 pt-1">
               <button
                 type="button"
@@ -630,6 +596,88 @@ export const OrchestratorCanvas: React.FC = () => {
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>{t('resetDefaults')}</span>
                 </button>
+              </div>
+            </div>
+
+            {currentHarness.id !== 'claude-desktop' && (
+              <div className="space-y-1">
+                <label className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider block">
+                  {t('terminalEmulatorTarget')}
+                </label>
+                <select
+                  value={selectedEmulator}
+                  onChange={(e) => setSelectedEmulator(e.target.value)}
+                  className="w-full h-10 px-3 rounded-lg bg-[#201f22] text-[#e5e1e4] text-xs border border-[#27272a] focus:outline-none focus:border-[#10b981] cursor-pointer"
+                >
+                  <option>Terminal.app (macOS default)</option>
+                  <option>iTerm2 (com.googlecode.iterm2)</option>
+                  <option>Windows Terminal (wt.exe)</option>
+                  <option>PowerShell (-NoExit)</option>
+                  <option>gnome-terminal (Linux)</option>
+                  <option>Alacritty / Kitty</option>
+                </select>
+              </div>
+            )}
+
+            {/* Scoped Env Payload Display */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold tracking-wider">
+                  {t('scopedEnvPayload')}
+                </span>
+                <span className="font-mono text-[10px] text-[#10b981]">{t('noGlobalPollution')}</span>
+              </div>
+              <div className="relative rounded-lg bg-[#0e0e10] p-3 border border-[#27272a] font-mono text-[11px] text-[#e5e1e4]">
+                <button
+                  type="button"
+                  onClick={handleCopyEnv}
+                  className="absolute top-2 right-2 p-1 rounded bg-[#201f22] hover:bg-[#2a2a2c] text-[#86948a] hover:text-[#e5e1e4] transition-colors cursor-pointer"
+                  title="Copy Environment Block"
+                >
+                  {copiedEnv ? (
+                    <Check className="w-3.5 h-3.5 text-[#10b981]" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+                <div className="space-y-1 text-[#bbcabf]">
+                  <div>
+                    <span className="text-[#4cd7f6]">export</span> ANTHROPIC_BASE_URL=
+                    <span className="text-[#10b981]">"{gatewayUrl}"</span>
+                  </div>
+                  <div>
+                    <span className="text-[#4cd7f6]">export</span> ANTHROPIC_API_KEY=
+                    <span className="text-[#ffb95f]">
+                      "{maskedKey || 'sk-litellm-...'}"
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#4cd7f6]">export</span> ANTHROPIC_MODEL=
+                    <span className="text-[#10b981]">"{activeSonnetModel}"</span>
+                  </div>
+                  <div>
+                    <span className="text-[#4cd7f6]">export</span> CLAUDE_CODE_MODEL=
+                    <span className="text-[#e5e1e4]">"{activeSonnetModel}"</span>
+                  </div>
+                  <div>
+                    <span className="text-[#4cd7f6]">export</span> OPENAI_API_BASE=
+                    <span className="text-[#10b981]">"{gatewayUrl}/v1"</span>
+                  </div>
+                  <div className="text-[#86948a] pt-1 italic text-[10px]">
+                    # Subprocess isolated • Zero global shell pollution
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Spawn Command Preview */}
+            <div className="rounded-lg bg-[#201f22] p-2.5 border border-[#27272a] space-y-1">
+              <span className="font-mono text-[10px] uppercase text-[#86948a] font-bold">
+                {t('spawnCommand')}
+              </span>
+              <div className="flex items-center gap-1.5 font-mono text-xs">
+                <span className="text-[#4cd7f6] font-bold select-none">$</span>
+                <span className="text-[#e5e1e4] truncate">{spawnCmdText}</span>
               </div>
             </div>
           </div>
